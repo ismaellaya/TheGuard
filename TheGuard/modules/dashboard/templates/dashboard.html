@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Resumen de estadísticas -->
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Alertas Totales</h5>
+                <h2 class="card-text" id="total-alerts">0</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <h5 class="card-title">Amenazas Activas</h5>
+                <h2 class="card-text" id="active-threats">0</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5 class="card-title">IPs Monitorizadas</h5>
+                <h2 class="card-text" id="monitored-ips">0</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Gráfico de alertas -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Alertas por Módulo</h5>
+                <canvas id="alerts-chart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lista de últimas alertas -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Últimas Alertas</h5>
+                <div id="recent-alerts" class="list-group">
+                    <!-- Las alertas se cargarán dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Tabla de IPs sospechosas -->
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">IPs Sospechosas</h5>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>IP</th>
+                                <th>Alertas</th>
+                                <th>Primera Detección</th>
+                                <th>Última Detección</th>
+                                <th>Reputación</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="suspicious-ips">
+                            <!-- Los datos se cargarán dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Actualizar estadísticas cada 30 segundos
+    updateStats();
+    setInterval(updateStats, 30000);
+    
+    // Inicializar el gráfico de alertas
+    initializeAlertsChart();
+});
+</script>
+{% endblock %}

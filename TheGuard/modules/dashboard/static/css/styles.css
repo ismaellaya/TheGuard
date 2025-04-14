@@ -1,0 +1,92 @@
+/* Estilos generales */
+body {
+    background-color: #f8f9fa;
+}
+
+/* Estilos para las tarjetas de estadísticas */
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Animación para los números en las tarjetas */
+.card-text {
+    transition: all 0.3s ease;
+}
+
+/* Estilos para la lista de alertas */
+#recent-alerts .list-group-item {
+    border-left: 4px solid;
+    margin-bottom: 0.5rem;
+}
+
+#recent-alerts .list-group-item-danger {
+    border-left-color: #dc3545;
+}
+
+#recent-alerts .list-group-item-warning {
+    border-left-color: #ffc107;
+}
+
+#recent-alerts .list-group-item-info {
+    border-left-color: #17a2b8;
+}
+
+/* Estilos para la tabla de IPs */
+.table {
+    background-color: white;
+    border-radius: 10px;
+}
+
+.table th {
+    border-top: none;
+    background-color: #f8f9fa;
+}
+
+.badge {
+    font-size: 0.9em;
+    padding: 0.5em 0.8em;
+}
+
+/* Estilos para los gráficos */
+canvas {
+    max-height: 400px;
+}
+
+/* Estilos responsive */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .table-responsive {
+        border-radius: 10px;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.alert-new {
+    animation: fadeIn 0.5s ease-in;
+}
+
+/* Estilos para los botones de acción */
+.btn-warning {
+    color: white;
+    background-color: #ffc107;
+}
+
+.btn-warning:hover {
+    background-color: #e0a800;
+    color: white;
+}

@@ -1,0 +1,30 @@
+# Reglas para detección de SQL Injection
+alert tcp any any -> $HOME_NET any (msg:"SQL Injection - SELECT detectado"; content:"SELECT"; nocase; content:"FROM"; nocase; distance:0; pcre:"/SELECT.*FROM/i"; classtype:web-application-attack; sid:1000001; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"SQL Injection - UNION detectado"; content:"UNION"; nocase; content:"SELECT"; nocase; distance:0; pcre:"/UNION.*SELECT/i"; classtype:web-application-attack; sid:1000002; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"SQL Injection - Comentario detectado"; pcre:"/(--|\#|\/\*)/"; classtype:web-application-attack; sid:1000003; rev:1;)
+
+# Reglas para detección de XSS
+alert tcp any any -> $HOME_NET any (msg:"XSS - Script Tag detectado"; content:"<script"; nocase; pcre:"/<script.*>/i"; classtype:web-application-attack; sid:1000004; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"XSS - Event Handler detectado"; pcre:"/on(mouse|load|click|error|focus).*=/i"; classtype:web-application-attack; sid:1000005; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"XSS - JavaScript Protocol detectado"; content:"javascript:"; nocase; classtype:web-application-attack; sid:1000006; rev:1;)
+
+# Reglas para detección de Path Traversal
+alert tcp any any -> $HOME_NET any (msg:"Path Traversal detectado"; pcre:"/\.\.(\/|\\)/"; classtype:web-application-attack; sid:1000007; rev:1;)
+
+# Reglas para detección de Command Injection
+alert tcp any any -> $HOME_NET any (msg:"Command Injection detectado"; pcre:"/;.*\b(cat|echo|ls|pwd|id|whoami|net|systeminfo|ipconfig|netstat|tasklist)\b/i"; classtype:attempted-admin; sid:1000008; rev:1;)
+
+# Reglas para detección de escaneo de puertos
+alert tcp any any -> $HOME_NET any (msg:"Escaneo de puertos detectado"; flags:S; threshold:type threshold, track by_src, count 5, seconds 1; classtype:attempted-recon; sid:1000009; rev:1;)
+
+# Reglas para detección de fuerza bruta
+alert tcp any any -> $HOME_NET any (msg:"Intento de fuerza bruta SSH"; flow:to_server,established; content:"SSH"; nocase; threshold:type threshold, track by_src, count 5, seconds 30; classtype:attempted-admin; sid:1000010; rev:1;)
+
+# Reglas para detección de malware común
+alert tcp any any -> $HOME_NET any (msg:"Posible C&C Beacon detectado"; flow:established; pcre:"/User-Agent\x3a.*(?:bot|crawl|scan)/i"; threshold:type threshold, track by_src, count 3, seconds 60; classtype:trojan-activity; sid:1000011; rev:1;)
+
+# Reglas para detectar tráfico DNS sospechoso
+alert udp any any -> any 53 (msg:"DNS Query Overflow detectado"; content:"|0100|"; dsize:>512; classtype:bad-unknown; sid:1000012; rev:1;)
+
+# Reglas para detectar tráfico ICMP sospechoso
+alert icmp any any -> $HOME_NET any (msg:"ICMP Flood detectado"; threshold:type threshold, track by_src, count 100, seconds 5; classtype:attempted-dos; sid:1000013; rev:1;)

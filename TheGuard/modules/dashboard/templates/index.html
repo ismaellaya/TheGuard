@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">Bienvenido a TheGuard</h1>
+        <p class="lead">Sistema de detección y prevención de intrusiones modular</p>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">IDS basado en firmas</h5>
+                <p class="card-text">Detección de amenazas mediante reglas Snort y patrones conocidos.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Análisis de Anomalías</h5>
+                <p class="card-text">Detección mediante machine learning y análisis de comportamiento.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Monitorización IP</h5>
+                <p class="card-text">Seguimiento de conexiones y reputación de IPs.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <a href="/dashboard" class="btn btn-primary">Ir al Dashboard</a>
+    </div>
+</div>
+{% endblock %}
