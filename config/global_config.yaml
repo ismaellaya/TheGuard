@@ -1,0 +1,71 @@
+# Configuración global de TheGuard
+
+# Rutas de los módulos
+paths:
+  ids_signatures: ./modules/ids_signatures
+  anomaly_analysis: ./modules/anomaly_analysis
+  dpi: ./modules/dpi
+  ip_monitoring: ./modules/ip_monitoring
+  dashboard: ./modules/dashboard
+
+# Configuración de Suricata
+suricata:
+  config_path: ./config/suricata/suricata.yaml
+  eve_json_path: ./logs/suricata/eve.json
+  rules_path: ./modules/ids_signatures/rules
+  custom_rules: ./modules/ids_signatures/rules/custom_rules.rules
+  et_rules: ./modules/ids_signatures/rules/et_rules/emerging.rules/rules
+
+# Configuración de Machine Learning
+ml_config:
+  model_path: ./modules/anomaly_analysis/model
+  batch_size: 32
+  epochs: 100
+  validation_split: 0.2
+  threshold: 0.8
+
+# Configuración de red
+network:
+  interface: eth0
+  capture_filter: "tcp or udp"
+  max_packet_size: 65535
+
+# Configuración del Dashboard
+dashboard:
+  host: localhost
+  port: 5000
+  debug: true
+  secret_key: "your-secret-key-here"
+
+# APIs externas
+apis:
+  abuseipdb:
+    api_key: "your-api-key-here"
+    base_url: "https://api.abuseipdb.com/api/v2"
+
+# Logging
+logging:
+  level: INFO
+  file: ./logs/theguard.log
+  max_size: 10MB
+  backup_count: 5
+
+# Configuración DPI
+dpi:
+  # Muestreo: analizar 1 de cada N paquetes
+  sample_rate: 5
+  
+  # Puertos a ignorar (HTTPS por defecto)
+  https_ports: [443, 8443]
+  
+  # Endpoint para alertas
+  alert_endpoint: "http://localhost:5000/api/alerts"
+  alert_timeout: 5
+  
+  # Configuración del pool de hilos
+  thread_pool_size: 4
+  
+  # Límites y umbrales
+  max_payload_size: 65535
+  alert_batch_size: 100
+  alert_flush_interval: 5  # segundos
