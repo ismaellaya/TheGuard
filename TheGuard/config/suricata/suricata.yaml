@@ -1,3 +1,7 @@
+%YAML 1.1
+---
+# Suricata configuration file
+
 # Configuración básica de Suricata
 vars:
   address-groups:
@@ -49,13 +53,21 @@ app-layer:
       enabled: yes
 
 # Reglas y clasificaciones
-default-rule-path: /etc/suricata/rules
+default-rule-path: modules/ids_signatures/rules
 rule-files:
-  - custom_rules.rules
-  - et_rules/emerging.rules/rules/*.rules
+  - rules/custom_rules.rules
+  - rules/et_rules/emerging.rules/rules/*.rules
 
 classification-file: /etc/suricata/rules/classification.config
 reference-config-file: /etc/suricata/rules/reference.config
+
+# Stats configuration to address the warning
+stats:
+  enabled: yes
+  filename: logs/suricata/stats.log
+  append: yes
+  totals: yes
+  threads: yes
 
 # Configuración de logging
 logging:
