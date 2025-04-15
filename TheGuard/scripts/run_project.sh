@@ -110,53 +110,31 @@ EOF
 
 # Verificar y configurar Suricata si es necesario
 setup_suricata() {
-    echo -e "${YELLOW}[*] Configurando Suricata...${NC}"
-    
-    # Verificar/Instalar Suricata
-    if ! command -v suricata &> /dev/null; then
-        echo -e "${YELLOW}[*] Instalando Suricata...${NC}"
-        apt-get update
-        apt-get install -y suricata
+    # Verificar si Suricata ya está en ejecución
+    if systemctl is-active --quiet suricata; then
+        echo -e "${YELLOW}[*] Suricata ya está en ejecución${NC}"
+        return
     fi
-    
-    # Verificar configuración
-    echo -e "${YELLOW}[*] Verificando configuración de Suricata...${NC}"
-    suricata -T -c /etc/suricata/suricata.yaml
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}[!] Error en la configuración de Suricata${NC}"
-        echo -e "${YELLOW}[*] Intentando reparar configuración...${NC}"
-        
-        # Backup de configuración actual
-        cp /etc/suricata/suricata.yaml /etc/suricata/suricata.yaml.bak
-        
-        # Restaurar configuración por defecto
-        apt-get install --reinstall suricata
-        
-        # Verificar nuevamente
-        suricata -T -c /etc/suricata/suricata.yaml
+
+    # Verificar estado de instalación
+    if [ ! -f "/etc/suricata/suricata.yaml" ]; then
+        echo -e "${YELLOW}[*] Primera instalación detectada${NC}"
+        bash "${BASE_DIR}/modules/ids_signatures/suricata_setup.sh"
         if [ $? -ne 0 ]; then
-            echo -e "${RED}[!] No se pudo reparar la configuración${NC}"
+            echo -e "${RED}[!] Error en la instalación inicial de Suricata${NC}"
             exit 1
         fi
+    else
+        # Configuración básica para arranques posteriores
+        systemctl start suricata
     fi
-    
-    # Reiniciar servicio limpiamente
-    echo -e "${YELLOW}[*] Reiniciando servicio Suricata...${NC}"
-    systemctl stop suricata
-    sleep 2
-    rm -f /var/run/suricata.pid
-    systemctl reset-failed suricata
-    systemctl start suricata
-    sleep 5
-    
-    # Verificar estado
+
+    # Verificar estado final
     if ! systemctl is-active --quiet suricata; then
-        echo -e "${RED}[!] Error: Suricata no está en ejecución${NC}"
-        echo -e "${YELLOW}[*] Mostrando logs de error:${NC}"
-        journalctl -u suricata -n 50 --no-pager
+        echo -e "${RED}[!] Error: No se pudo iniciar Suricata${NC}"
         exit 1
     fi
-    
+
     echo -e "${GREEN}[+] Suricata configurado y ejecutando correctamente${NC}"
 }
 
