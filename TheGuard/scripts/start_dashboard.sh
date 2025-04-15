@@ -1,21 +1,25 @@
 #!/bin/bash
 
+# Definir la ruta base del proyecto
+BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+
 # Configurar entorno virtual si no existe
-if [ ! -d "venv" ]; then
+if [ ! -d "${BASE_DIR}/venv" ]; then
     echo "[+] Creando entorno virtual..."
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
+    python3 -m venv "${BASE_DIR}/venv"
+    source "${BASE_DIR}/venv/bin/activate"
+    pip install -r "${BASE_DIR}/requirements.txt"
 else
-    source venv/bin/activate
+    source "${BASE_DIR}/venv/bin/activate"
 fi
 
 # Asegurar que todos los directorios necesarios existen
-mkdir -p logs
+mkdir -p "${BASE_DIR}/logs"
 
 # Exportar variables de entorno necesarias
-export FLASK_APP=modules/dashboard/app.py
+export FLASK_APP="${BASE_DIR}/modules/dashboard/app.py"
 export FLASK_ENV=production
+export PYTHONPATH="${BASE_DIR}"
 
 # Iniciar el dashboard
 echo "[+] Iniciando dashboard..."

@@ -1,10 +1,38 @@
 #!/bin/bash
 
+# Definir la ruta base del proyecto
+BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+
 # Configurar colores para los mensajes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
+
+# Función para crear y configurar directorios
+setup_directories() {
+    echo -e "${YELLOW}[*] Creando estructura de directorios...${NC}"
+    
+    # Crear directorios principales
+    mkdir -p "${BASE_DIR}/logs"
+    mkdir -p /var/log/theguard/suricata
+    mkdir -p /etc/suricata/rules
+    mkdir -p /var/lib/suricata/backup
+    mkdir -p "${BASE_DIR}/modules/ids_signatures/rules"
+    mkdir -p "${BASE_DIR}/modules/anomaly_analysis/model/trained_models"
+    
+    # Configurar permisos
+    chown -R root:root /var/log/theguard
+    chmod -R 755 /var/log/theguard
+    chown -R root:root /etc/suricata
+    chmod -R 755 /etc/suricata
+    
+    # Crear directorio para archivos temporales
+    mkdir -p /tmp/theguard
+    chmod 777 /tmp/theguard
+    
+    echo -e "${GREEN}[+] Directorios creados y configurados correctamente${NC}"
+}
 
 echo -e "${GREEN}[+] Iniciando TheGuard...${NC}"
 
@@ -13,6 +41,9 @@ if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}Este script debe ejecutarse como root${NC}"
     exit 1
 fi
+
+# Crear y configurar directorios
+setup_directories
 
 # Configurar la Raspberry Pi como AP
 setup_ap() {
@@ -81,16 +112,52 @@ EOF
 setup_suricata() {
     echo -e "${YELLOW}[*] Configurando Suricata...${NC}"
     
+    # Verificar/Instalar Suricata
     if ! command -v suricata &> /dev/null; then
         echo -e "${YELLOW}[*] Instalando Suricata...${NC}"
-        bash ../modules/ids_signatures/suricata_setup.sh
+        apt-get update
+        apt-get install -y suricata
     fi
     
-    # Verificar que Suricata está funcionando correctamente
+    # Verificar configuración
+    echo -e "${YELLOW}[*] Verificando configuración de Suricata...${NC}"
+    suricata -T -c /etc/suricata/suricata.yaml
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}[!] Error en la configuración de Suricata${NC}"
+        echo -e "${YELLOW}[*] Intentando reparar configuración...${NC}"
+        
+        # Backup de configuración actual
+        cp /etc/suricata/suricata.yaml /etc/suricata/suricata.yaml.bak
+        
+        # Restaurar configuración por defecto
+        apt-get install --reinstall suricata
+        
+        # Verificar nuevamente
+        suricata -T -c /etc/suricata/suricata.yaml
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}[!] No se pudo reparar la configuración${NC}"
+            exit 1
+        fi
+    fi
+    
+    # Reiniciar servicio limpiamente
+    echo -e "${YELLOW}[*] Reiniciando servicio Suricata...${NC}"
+    systemctl stop suricata
+    sleep 2
+    rm -f /var/run/suricata.pid
+    systemctl reset-failed suricata
+    systemctl start suricata
+    sleep 5
+    
+    # Verificar estado
     if ! systemctl is-active --quiet suricata; then
         echo -e "${RED}[!] Error: Suricata no está en ejecución${NC}"
+        echo -e "${YELLOW}[*] Mostrando logs de error:${NC}"
+        journalctl -u suricata -n 50 --no-pager
         exit 1
     fi
+    
+    echo -e "${GREEN}[+] Suricata configurado y ejecutando correctamente${NC}"
 }
 
 # Crear directorios necesarios
@@ -109,30 +176,59 @@ suricata-update
 
 # Copiar reglas personalizadas
 echo -e "${YELLOW}[*] Instalando reglas personalizadas...${NC}"
-cp ../modules/ids_signatures/rules/custom_rules.rules /etc/suricata/rules/
+cp "${BASE_DIR}/modules/ids_signatures/rules/custom_rules.rules" /etc/suricata/rules/
 systemctl restart suricata
-
-# Iniciar el dashboard
-echo -e "${YELLOW}[*] Iniciando dashboard...${NC}"
-bash scripts/start_dashboard.sh &
 
 # Iniciar el procesador de alertas de Suricata
 echo -e "${YELLOW}[*] Iniciando sistema de monitoreo de alertas...${NC}"
-python3 -c "from modules.ids_signatures import get_ids_processor; get_ids_processor().start_monitoring()" &
-
-# Registrar PIDs para limpieza al salir
+PYTHONPATH="${BASE_DIR}" python3 -c "from modules.ids_signatures import get_ids_processor; get_ids_processor().start_monitoring()" &
 echo $! > /var/run/theguard_alert_monitor.pid
 
-# Función de limpieza
+# Iniciar todos los módulos
+echo -e "${YELLOW}[*] Iniciando módulos...${NC}"
+
+# Módulo 1 - IDS (Suricata ya está iniciado)
+
+# Módulo 2 - Análisis de Anomalías
+echo -e "${YELLOW}[*] Iniciando Módulo 2 (Análisis de Anomalías)...${NC}"
+PYTHONPATH="${BASE_DIR}" python3 -c "from modules.anomaly_analysis import AnomalyModule; AnomalyModule().start()" &
+echo $! > /var/run/theguard_anomaly.pid
+
+# Módulo 3 - DPI
+echo -e "${YELLOW}[*] Iniciando Módulo 3 (DPI)...${NC}"
+PYTHONPATH="${BASE_DIR}" python3 -c "from modules.dpi import DPIModule; DPIModule().start()" &
+echo $! > /var/run/theguard_dpi.pid
+
+# Módulo 4 - IP Monitoring
+echo -e "${YELLOW}[*] Iniciando Módulo 4 (IP Monitoring)...${NC}"
+PYTHONPATH="${BASE_DIR}" python3 -c "from modules.ip_monitoring import IPMonitoringModule; IPMonitoringModule().start()" &
+echo $! > /var/run/theguard_ip_monitoring.pid
+
+# Módulo 5 - Dashboard
+echo -e "${YELLOW}[*] Iniciando Dashboard...${NC}"
+bash "${BASE_DIR}/scripts/start_dashboard.sh" &
+echo $! > /var/run/theguard_dashboard.pid
+
+# Función de limpieza actualizada
 cleanup() {
     echo -e "${YELLOW}[*] Deteniendo servicios...${NC}"
-    # Detener monitor de alertas
-    if [ -f /var/run/theguard_alert_monitor.pid]; then
-        kill $(cat /var/run/theguard_alert_monitor.pid)
-        rm /var/run/theguard_alert_monitor.pid
-    fi
+    
+    # Detener todos los módulos
+    for pid_file in /var/run/theguard_*.pid; do
+        if [ -f "$pid_file" ]; then
+            kill $(cat "$pid_file")
+            rm "$pid_file"
+        fi
+    done
+    
     # Detener Suricata
     systemctl stop suricata
+    
+    # Detener servicios de AP
+    systemctl stop hostapd
+    systemctl stop dnsmasq
+    
+    echo -e "${GREEN}[+] Todos los módulos detenidos correctamente${NC}"
 }
 
 # Registrar función de limpieza para señales de terminación
