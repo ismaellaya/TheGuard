@@ -83,7 +83,7 @@ setup_suricata() {
     
     if ! command -v suricata &> /dev/null; then
         echo -e "${YELLOW}[*] Instalando Suricata...${NC}"
-        bash modules/ids_signatures/suricata_setup.sh
+        bash ../modules/ids_signatures/suricata_setup.sh
     fi
     
     # Verificar que Suricata está funcionando correctamente
@@ -109,7 +109,7 @@ suricata-update
 
 # Copiar reglas personalizadas
 echo -e "${YELLOW}[*] Instalando reglas personalizadas...${NC}"
-cp modules/ids_signatures/rules/custom_rules.rules /etc/suricata/rules/
+cp ../modules/ids_signatures/rules/custom_rules.rules /etc/suricata/rules/
 systemctl restart suricata
 
 # Iniciar el dashboard
