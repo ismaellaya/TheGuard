@@ -12,7 +12,7 @@ outputs:
   - eve-log:
       enabled: yes
       filetype: regular
-      filename: /var/log/suricata/eve.json
+      filename: /var/log/theguard/suricata/eve.json
       types:
         - alert
         - http
@@ -49,59 +49,13 @@ app-layer:
       enabled: yes
 
 # Reglas y clasificaciones
-default-rule-path: modules/ids_signatures/rules
+default-rule-path: /etc/suricata/rules
 rule-files:
   - custom_rules.rules
-  - et_rules/emerging.rules/rules/botcc.rules
-  - et_rules/emerging.rules/rules/botcc.portgrouped.rules
-  - et_rules/emerging.rules/rules/compromised.rules
-  - et_rules/emerging.rules/rules/drop.rules
-  - et_rules/emerging.rules/rules/dshield.rules
-  - et_rules/emerging.rules/rules/emerging-activex.rules
-  - et_rules/emerging.rules/rules/emerging-adware_pup.rules
-  - et_rules/emerging.rules/rules/emerging-attack_response.rules
-  - et_rules/emerging.rules/rules/emerging-chat.rules
-  - et_rules/emerging.rules/rules/emerging-coinminer.rules
-  - et_rules/emerging.rules/rules/emerging-current_events.rules
-  - et_rules/emerging.rules/rules/emerging-dns.rules
-  - et_rules/emerging.rules/rules/emerging-dos.rules
-  - et_rules/emerging.rules/rules/emerging-exploit.rules
-  - et_rules/emerging.rules/rules/emerging-exploit_kit.rules
-  - et_rules/emerging.rules/rules/emerging-ftp.rules
-  - et_rules/emerging.rules/rules/emerging-games.rules
-  - et_rules/emerging.rules/rules/emerging-hunting.rules
-  - et_rules/emerging.rules/rules/emerging-icmp.rules
-  - et_rules/emerging.rules/rules/emerging-imap.rules
-  - et_rules/emerging.rules/rules/emerging-info.rules
-  - et_rules/emerging.rules/rules/emerging-ja3.rules
-  - et_rules/emerging.rules/rules/emerging-malware.rules
-  - et_rules/emerging.rules/rules/emerging-misc.rules
-  - et_rules/emerging.rules/rules/emerging-mobile_malware.rules
-  - et_rules/emerging.rules/rules/emerging-netbios.rules
-  - et_rules/emerging.rules/rules/emerging-p2p.rules
-  - et_rules/emerging.rules/rules/emerging-phishing.rules
-  - et_rules/emerging.rules/rules/emerging-policy.rules
-  - et_rules/emerging.rules/rules/emerging-pop3.rules
-  - et_rules/emerging.rules/rules/emerging-rpc.rules
-  - et_rules/emerging.rules/rules/emerging-scada.rules
-  - et_rules/emerging.rules/rules/emerging-scan.rules
-  - et_rules/emerging.rules/rules/emerging-shellcode.rules
-  - et_rules/emerging.rules/rules/emerging-smtp.rules
-  - et_rules/emerging.rules/rules/emerging-snmp.rules
-  - et_rules/emerging.rules/rules/emerging-sql.rules
-  - et_rules/emerging.rules/rules/emerging-telnet.rules
-  - et_rules/emerging.rules/rules/emerging-tftp.rules
-  - et_rules/emerging.rules/rules/emerging-user_agents.rules
-  - et_rules/emerging.rules/rules/emerging-voip.rules
-  - et_rules/emerging.rules/rules/emerging-web_client.rules
-  - et_rules/emerging.rules/rules/emerging-web_server.rules
-  - et_rules/emerging.rules/rules/emerging-web_specific_apps.rules
-  - et_rules/emerging.rules/rules/emerging-worm.rules
-  - et_rules/emerging.rules/rules/threatview_CS_c2.rules
-  - et_rules/emerging.rules/rules/tor.rules
+  - et_rules/emerging.rules/rules/*.rules
 
-classification-file: modules/ids_signatures/rules/et_rules/emerging.rules/rules/classification.config
-reference-config-file: modules/ids_signatures/rules/et_rules/emerging.rules/rules/reference.config
+classification-file: /etc/suricata/rules/classification.config
+reference-config-file: /etc/suricata/rules/reference.config
 
 # Configuración de logging
 logging:
@@ -111,7 +65,7 @@ logging:
         enabled: yes
     - file:
         enabled: yes
-        filename: /var/log/suricata/suricata.log
+        filename: /var/log/theguard/suricata/suricata.log
         level: info
 
 # Configuración de captura de paquetes
