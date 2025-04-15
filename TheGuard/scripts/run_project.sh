@@ -77,43 +77,48 @@ EOF
     systemctl start dnsmasq
 }
 
-# Verificar y configurar Snort si es necesario
-setup_snort() {
-    echo -e "${YELLOW}[*] Configurando Snort...${NC}"
+# Verificar y configurar Suricata si es necesario
+setup_suricata() {
+    echo -e "${YELLOW}[*] Configurando Suricata...${NC}"
     
-    if ! command -v snort &> /dev/null; then
-        echo -e "${YELLOW}[*] Instalando Snort...${NC}"
-        bash modules/ids_firmas/snort_setup.sh
+    if ! command -v suricata &> /dev/null; then
+        echo -e "${YELLOW}[*] Instalando Suricata...${NC}"
+        bash modules/ids_signatures/suricata_setup.sh
     fi
     
-    # Verificar que Snort está funcionando correctamente
-    if ! systemctl is-active --quiet snort; then
-        echo -e "${RED}[!] Error: Snort no está en ejecución${NC}"
+    # Verificar que Suricata está funcionando correctamente
+    if ! systemctl is-active --quiet suricata; then
+        echo -e "${RED}[!] Error: Suricata no está en ejecución${NC}"
         exit 1
     fi
 }
 
 # Crear directorios necesarios
 mkdir -p /var/log/theguard
-mkdir -p /var/log/snort
+mkdir -p /var/log/suricata
 
 # Configurar AP
 setup_ap
 
-# Configurar Snort
-setup_snort
+# Configurar Suricata
+setup_suricata
 
-# Actualizar reglas de Snort
-echo -e "${YELLOW}[*] Actualizando reglas de Snort...${NC}"
-bash scripts/update_signatures.sh
+# Actualizar reglas de Suricata
+echo -e "${YELLOW}[*] Actualizando reglas de Suricata...${NC}"
+suricata-update
+
+# Copiar reglas personalizadas
+echo -e "${YELLOW}[*] Instalando reglas personalizadas...${NC}"
+cp modules/ids_signatures/rules/custom_rules.rules /etc/suricata/rules/
+systemctl restart suricata
 
 # Iniciar el dashboard
 echo -e "${YELLOW}[*] Iniciando dashboard...${NC}"
 bash scripts/start_dashboard.sh &
 
-# Iniciar el procesador de alertas de Snort y sistema de integración
+# Iniciar el procesador de alertas de Suricata
 echo -e "${YELLOW}[*] Iniciando sistema de monitoreo de alertas...${NC}"
-python3 -c "from modules.ids_firmas import get_integration; get_integration().start_monitoring()" &
+python3 -c "from modules.ids_signatures import get_ids_processor; get_ids_processor().start_monitoring()" &
 
 # Registrar PIDs para limpieza al salir
 echo $! > /var/run/theguard_alert_monitor.pid
@@ -122,12 +127,12 @@ echo $! > /var/run/theguard_alert_monitor.pid
 cleanup() {
     echo -e "${YELLOW}[*] Deteniendo servicios...${NC}"
     # Detener monitor de alertas
-    if [ -f /var/run/theguard_alert_monitor.pid ]; then
+    if [ -f /var/run/theguard_alert_monitor.pid]; then
         kill $(cat /var/run/theguard_alert_monitor.pid)
         rm /var/run/theguard_alert_monitor.pid
     fi
-    # Detener Snort
-    systemctl stop snort
+    # Detener Suricata
+    systemctl stop suricata
 }
 
 # Registrar función de limpieza para señales de terminación
