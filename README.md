@@ -4,23 +4,23 @@ Sistema de detección y prevención de intrusiones (IDS/IPS) modular que combina
 
 ## Módulos Principales
 
-1. **IDS basado en firmas** (modules/ids_firmas)
-   - Detección mediante Snort
+1. **IDS basado en firmas** 
+   - Detección mediante Suricata
    - Reglas personalizadas para ataques comunes
 
-2. **Análisis de Anomalías** (modules/analisis_anomalias)
+2. **Análisis de Anomalías** 
    - Modelos de Machine Learning (Autoencoder + LSTM)
    - Detección de comportamientos anómalos
 
-3. **Deep Packet Inspection** (modules/dpi)
+3. **Deep Packet Inspection** 
    - Análisis profundo de paquetes
    - Detección de patrones maliciosos
 
-4. **Monitorización IP** (modules/monitorizacion_ip)
+4. **Monitorización IP** 
    - Seguimiento de conexiones
    - Integración con AbuseIPDB
 
-5. **Dashboard** (modules/dashboard)
+5. **Dashboard** 
    - Panel de control web
    - Visualización de alertas y estadísticas
 
@@ -28,7 +28,7 @@ Sistema de detección y prevención de intrusiones (IDS/IPS) modular que combina
 
 1. Clonar el repositorio:
    ```bash
-   git clone https://github.com/usuario/TheGuard.git
+   git clone https://github.com/ismaellaya/TheGuard.git
    cd TheGuard
    ```
 
@@ -41,8 +41,8 @@ Sistema de detección y prevención de intrusiones (IDS/IPS) modular que combina
 
 3. Configurar Snort:
    ```bash
-   cd modules/ids_firmas
-   ./snort_setup.sh
+   cd modules/ids_signatures
+   ./suricata_setup.sh
    ```
 
 4. Configurar las variables de entorno en config/global_config.yaml
