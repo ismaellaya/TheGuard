@@ -1,5 +1,23 @@
 #!/bin/bash
 
+# Control de instancia única
+LOCK_FILE="/var/run/suricata_setup.lock"
+
+# Verificar si ya hay una instalación en proceso
+if [ -f "$LOCK_FILE" ]; then
+    echo "[!] Ya hay un proceso de instalación en ejecución"
+    exit 1
+fi
+
+# Crear archivo de bloqueo
+touch "$LOCK_FILE"
+
+# Agregar limpieza al final o en caso de error
+cleanup() {
+    rm -f "$LOCK_FILE"
+}
+trap cleanup EXIT
+
 # Log de instalación
 LOG_FILE="/var/log/theguard_suricata_setup.log"
 exec 1> >(tee -a "$LOG_FILE") 2>&1
