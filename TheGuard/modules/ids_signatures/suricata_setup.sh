@@ -105,6 +105,51 @@ cp -r rules/et_rules/* /etc/suricata/rules/
 echo "[+] Copiando configuración personalizada..."
 cp ../config/suricata/suricata.yaml /etc/suricata/suricata.yaml
 
+# Copiar archivos de clasificación y referencia
+echo "[+] Copiando archivos de clasificación y referencia..."
+cp rules/et_rules/emerging.rules/rules/classification.config /etc/suricata/
+cp rules/et_rules/emerging.rules/rules/reference.config /etc/suricata/
+
+# Configurar variables de red
+echo "[+] Configurando variables de red..."
+cat >> /etc/suricata/suricata.yaml << EOF
+
+vars:
+  address-groups:
+    HOME_NET: "[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]"
+    EXTERNAL_NET: "!$HOME_NET"
+    HTTP_SERVERS: "$HOME_NET"
+    SQL_SERVERS: "$HOME_NET"
+    DNS_SERVERS: "$HOME_NET"
+    SMTP_SERVERS: "$HOME_NET"
+    TELNET_SERVERS: "$HOME_NET"
+    AIM_SERVERS: "$EXTERNAL_NET"
+EOF
+
+# Habilitar protocolos requeridos
+echo "[+] Habilitando protocolos adicionales..."
+sed -i 's/dnp3: no/dnp3: yes/' /etc/suricata/suricata.yaml
+sed -i 's/modbus: no/modbus: yes/' /etc/suricata/suricata.yaml
+
+# Configurar stats logger
+echo "[+] Configurando stats logger..."
+cat >> /etc/suricata/suricata.yaml << EOF
+
+stats:
+  enabled: yes
+  interval: 10
+  decoder-events: true
+  http-events: true
+  dns-events: true
+  tls-events: true
+
+outputs:
+  - stats:
+      enabled: yes
+      filename: stats.log
+      interval: 10
+EOF
+
 # Configuración de logging mejorada
 echo "[+] Configurando sistema de logging..."
 cat > /etc/rsyslog.d/00-suricata.conf << EOF
