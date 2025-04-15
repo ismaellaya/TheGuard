@@ -1,7 +1,12 @@
-from scapy.all import sniff, IP, TCP, UDP
+from scapy.all import sniff, IP, TCP, UDP, Raw
 import yaml
+import queue
+import time
+import requests
 from concurrent.futures import ThreadPoolExecutor
 import logging
+import threading
+from typing import Dict, Any
 from .payload_parser import analyze_payload
 from .regex_rules import match_patterns
 
@@ -19,9 +24,75 @@ class PacketCapture:
         )
         self.logger = logging.getLogger('dpi.packet_capture')
         
-        # Pool de hilos para análisis paralelo
-        self.thread_pool = ThreadPoolExecutor(max_workers=4)
+        # Configuración DPI
+        self.sample_rate = self.config.get('dpi', {}).get('sample_rate', 5)
+        self.https_ports = self.config.get('dpi', {}).get('https_ports', [443, 8443])
+        self.alert_endpoint = self.config.get('dpi', {}).get('alert_endpoint', 'http://localhost:5000/api/alerts')
+        self.alert_timeout = self.config.get('dpi', {}).get('alert_timeout', 5)
         
+        # Contadores y estado
+        self.packet_count = 0
+        
+        # Cola de alertas y pool de hilos
+        self.alert_queue = queue.Queue()
+        self.thread_pool = ThreadPoolExecutor(
+            max_workers=self.config.get('dpi', {}).get('thread_pool_size', 4)
+        )
+        
+        # Iniciar thread para procesamiento de alertas
+        self.alert_thread = threading.Thread(target=self._process_alerts, daemon=True)
+        self.alert_thread.start()
+
+    def should_process_packet(self, packet) -> bool:
+        """Determina si un paquete debe ser procesado basado en muestreo y filtros"""
+        # Incrementar contador global
+        self.packet_count += 1
+        
+        # Aplicar muestreo
+        if self.packet_count % self.sample_rate != 0:
+            return False
+            
+        # Verificar si es paquete TCP/IP
+        if not (packet.haslayer(TCP) and packet.haslayer(IP)):
+            return False
+            
+        # Filtrar puertos HTTPS
+        tcp_layer = packet[TCP]
+        if tcp_layer.dport in self.https_ports or tcp_layer.sport in self.https_ports:
+            return False
+            
+        # Verificar si tiene payload
+        if not packet.haslayer(Raw):
+            return False
+            
+        return True
+
+    def _send_alert(self, alert_data: Dict[str, Any]):
+        """Envía una alerta al endpoint configurado"""
+        try:
+            response = requests.post(
+                self.alert_endpoint,
+                json=alert_data,
+                timeout=self.alert_timeout
+            )
+            if response.status_code == 200:
+                self.logger.info(f"Alerta enviada exitosamente: {alert_data}")
+            else:
+                self.logger.error(f"Error enviando alerta: {response.status_code}")
+        except Exception as e:
+            self.logger.error(f"Error en envío de alerta: {str(e)}")
+
+    def _process_alerts(self):
+        """Procesa las alertas en cola de forma asíncrona"""
+        while True:
+            try:
+                alert = self.alert_queue.get()
+                if alert is None:  # Señal de terminación
+                    break
+                self.thread_pool.submit(self._send_alert, alert)
+            except Exception as e:
+                self.logger.error(f"Error procesando alerta: {str(e)}")
+
     def start_capture(self):
         """Inicia la captura de paquetes en la interfaz configurada."""
         try:
@@ -29,15 +100,19 @@ class PacketCapture:
             sniff(
                 iface=self.config['network']['interface'],
                 filter=self.config['network']['capture_filter'],
-                prn=self.process_packet
+                prn=self.process_packet,
+                store=0  # No almacenar paquetes en memoria
             )
         except Exception as e:
             self.logger.error(f"Error al iniciar la captura: {str(e)}")
             raise
+        finally:
+            self.stop_capture()
 
     def process_packet(self, packet):
         """Procesa cada paquete capturado."""
-        if not packet.haslayer(IP):
+        # Aplicar prefiltrado y muestreo
+        if not self.should_process_packet(packet):
             return
 
         try:
@@ -69,17 +144,15 @@ class PacketCapture:
             'flags': packet[TCP].flags
         }
         
-        # Analizar payload si existe
-        if packet[TCP].payload:
-            payload = bytes(packet[TCP].payload)
-            if len(payload) > 0:
-                # Analizar contenido del payload
-                threats = analyze_payload(payload)
-                # Buscar patrones sospechosos
-                matches = match_patterns(payload)
-                
-                if threats or matches:
-                    self._report_suspicious_activity(ip_info, tcp_info, threats, matches)
+        payload = bytes(packet[Raw].load)
+        if len(payload) > 0:
+            # Analizar contenido del payload
+            threats = analyze_payload(payload)
+            # Buscar patrones sospechosos
+            matches = match_patterns(payload)
+            
+            if threats or matches:
+                self._report_suspicious_activity(ip_info, tcp_info, threats, matches)
 
     def _analyze_udp(self, packet, ip_info):
         """Análisis específico para paquetes UDP."""
@@ -88,15 +161,13 @@ class PacketCapture:
             'dport': packet[UDP].dport
         }
         
-        # Analizar payload si existe
-        if packet[UDP].payload:
-            payload = bytes(packet[UDP].payload)
-            if len(payload) > 0:
-                threats = analyze_payload(payload)
-                matches = match_patterns(payload)
-                
-                if threats or matches:
-                    self._report_suspicious_activity(ip_info, udp_info, threats, matches)
+        payload = bytes(packet[Raw].load)
+        if len(payload) > 0:
+            threats = analyze_payload(payload)
+            matches = match_patterns(payload)
+            
+            if threats or matches:
+                self._report_suspicious_activity(ip_info, udp_info, threats, matches)
 
     def _report_suspicious_activity(self, ip_info, proto_info, threats, matches):
         """Reporta actividad sospechosa detectada."""
@@ -107,13 +178,23 @@ class PacketCapture:
             'source_port': proto_info.get('sport'),
             'dest_port': proto_info.get('dport'),
             'threats': threats,
-            'pattern_matches': matches
+            'pattern_matches': matches,
+            'timestamp': time.time()
         }
         
+        # Registrar en log
         self.logger.warning(f"Actividad sospechosa detectada: {alert}")
-        # TODO: Enviar alerta al dashboard
+        
+        # Agregar a la cola de alertas para envío asíncrono
+        self.alert_queue.put(alert)
 
     def stop_capture(self):
         """Detiene la captura de paquetes y limpia recursos."""
+        # Señal de terminación para el thread de alertas
+        self.alert_queue.put(None)
+        
+        # Esperar a que terminen los threads
+        self.alert_thread.join()
         self.thread_pool.shutdown(wait=True)
+        
         self.logger.info("Captura de paquetes detenida")

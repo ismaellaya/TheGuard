@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify
 import yaml
 import os
-from modules.ids_firmas import get_integration
+from modules.ids_signatures import get_integration
 
 app = Flask(__name__)
 
@@ -31,13 +31,13 @@ def get_alerts():
         
         # Formatear datos para el frontend
         alert_data = {
-            'ids_firmas': stats['alert_counts'].get('sql_injection', 0) + 
+            'ids_signatures': stats['alert_counts'].get('sql_injection', 0) + 
                          stats['alert_counts'].get('xss', 0) +
                          stats['alert_counts'].get('command_injection', 0),
             'anomalias': stats['alert_counts'].get('anomaly', 0),
             'dpi': stats['alert_counts'].get('malware', 0) +
                    stats['alert_counts'].get('dns_anomaly', 0),
-            'monitorizacion_ip': stats['alert_counts'].get('port_scan', 0) +
+            'ip_monitoring': stats['alert_counts'].get('port_scan', 0) +
                                 stats['alert_counts'].get('brute_force', 0),
             'recent': [{
                 'type': alert['type'],
@@ -57,36 +57,18 @@ def get_alerts():
 def get_stats():
     """Endpoint para obtener estadísticas generales."""
     try:
-        stats = alert_integration.get_statistics()
-        
-        response = {
-            'total_alerts': stats['total_alerts'],
-            'active_threats': sum(1 for alert in stats.get('recent_alerts', [])
-                                if alert['severity'] == 'danger'),
-            'monitored_ips': len(set(alert['source_ip'] 
-                                   for alert in stats.get('recent_alerts', [])
-                                   if 'source_ip' in alert)),
-            'suspicious_ips': [
-                {
-                    'address': alert.get('source_ip', 'Unknown'),
-                    'alert_count': stats['alert_counts'].get(alert['type'], 0),
-                    'first_seen': min(a['timestamp'] 
-                                    for a in stats.get('recent_alerts', [])
-                                    if a.get('source_ip') == alert.get('source_ip')),
-                    'last_seen': max(a['timestamp']
-                                   for a in stats.get('recent_alerts', [])
-                                   if a.get('source_ip') == alert.get('source_ip')),
-                    'reputation': alert.get('reputation', 0)
-                }
-                for alert in stats.get('recent_alerts', [])
-                if 'source_ip' in alert
-            ]
-        }
-        
-        return jsonify(response)
+        stats = alert_integration.get_stats()
+        return jsonify({
+            'ids_signatures': stats['alert_counts'].get('sql_injection', 0) + 
+                          stats['alert_counts'].get('xss', 0) +
+                          stats['alert_counts'].get('path_traversal', 0),
+            'dpi': stats['alert_counts'].get('malware', 0) +
+                 stats['alert_counts'].get('dns_anomaly', 0),
+            'ip_monitoring': stats['alert_counts'].get('port_scan', 0) +
+                         stats['alert_counts'].get('brute_force', 0)
+        })
     except Exception as e:
-        app.logger.error(f"Error obteniendo estadísticas: {str(e)}")
-        return jsonify({'error': 'Error interno del servidor'}), 500
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(
