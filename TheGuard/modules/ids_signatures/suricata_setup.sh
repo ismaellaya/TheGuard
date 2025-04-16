@@ -2,6 +2,8 @@
 
 # Control de instancia única
 LOCK_FILE="/var/run/suricata_setup.lock"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 # Verificar si ya hay una instalación en proceso
 if [ -f "$LOCK_FILE" ]; then
@@ -20,6 +22,7 @@ trap cleanup EXIT
 
 # Log de instalación
 LOG_FILE="/var/log/theguard_suricata_setup.log"
+mkdir -p "$(dirname "$LOG_FILE")"
 exec 1> >(tee -a "$LOG_FILE") 2>&1
 
 echo "[+] Iniciando instalación de Suricata $(date)"
@@ -57,8 +60,14 @@ check_requirements() {
     fi
     
     # Verificar archivo de configuración
-    if [ ! -f "../config/suricata/suricata.yaml" ]; then
-        echo "[!] Error: No se encuentra el archivo de configuración"
+    if [ ! -f "${PROJECT_ROOT}/config/suricata/suricata.yaml" ]; then
+        echo "[!] Error: No se encuentra el archivo de configuración en ${PROJECT_ROOT}/config/suricata/suricata.yaml"
+        exit 1
+    fi
+    
+    # Verificar directorios de reglas
+    if [ ! -d "${SCRIPT_DIR}/rules" ]; then
+        echo "[!] Error: No se encuentra el directorio de reglas"
         exit 1
     fi
     
@@ -75,40 +84,73 @@ check_requirements
 echo "[+] Instalando dependencias..."
 apt-get update
 apt-get install -y software-properties-common
-add-apt-repository ppa:oisf/suricata-stable
-apt-get update
-apt-get install -y suricata
+
+# Detectar distribución
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    case $ID in
+        debian|raspbian)
+            apt-get install -y suricata
+            ;;
+        ubuntu)
+            add-apt-repository ppa:oisf/suricata-stable
+            apt-get update
+            apt-get install -y suricata
+            ;;
+        *)
+            echo "[!] Distribución no soportada: $ID"
+            exit 1
+            ;;
+    esac
+fi
 
 # Crear directorios necesarios
 echo "[+] Configurando directorios..."
 mkdir -p /var/log/theguard/suricata
-mkdir -p /etc/suricata/rules
 mkdir -p /etc/suricata/rules/custom
 mkdir -p /var/lib/suricata/backup
-
-# Configurar permisos
-chown -R suricata:suricata /var/log/theguard/suricata
 chmod -R 750 /var/log/theguard/suricata
 
+# Configurar usuario y grupo de Suricata
+if ! getent group suricata >/dev/null; then
+    groupadd suricata
+fi
+if ! getent passwd suricata >/dev/null; then
+    useradd -r -g suricata -s /sbin/nologin suricata
+fi
+
 # Hacer backup de la configuración existente
+echo "[+] Realizando backup de configuración existente..."
 if [ -f "/etc/suricata/suricata.yaml" ]; then
-    echo "[+] Realizando backup de configuración existente..."
-    cp /etc/suricata/suricata.yaml /var/lib/suricata/backup/suricata.yaml.$(date +%Y%m%d_%H%M%S)
+    cp /etc/suricata/suricata.yaml "/var/lib/suricata/backup/suricata.yaml.$(date +%Y%m%d_%H%M%S)"
 fi
 
 # Copiar reglas personalizadas
 echo "[+] Instalando reglas personalizadas..."
-cp rules/custom_rules.rules /etc/suricata/rules/custom/
-cp -r rules/et_rules/* /etc/suricata/rules/
+if [ -f "${SCRIPT_DIR}/rules/custom_rules.rules" ]; then
+    cp "${SCRIPT_DIR}/rules/custom_rules.rules" /etc/suricata/rules/custom/
+else
+    echo "[!] Advertencia: No se encontraron reglas personalizadas"
+fi
+
+if [ -d "${SCRIPT_DIR}/rules/et_rules" ]; then
+    cp -r "${SCRIPT_DIR}/rules/et_rules"/* /etc/suricata/rules/
+else
+    echo "[!] Advertencia: No se encontraron reglas ET"
+fi
 
 # Copiar configuración personalizada
 echo "[+] Copiando configuración personalizada..."
-cp ../config/suricata/suricata.yaml /etc/suricata/suricata.yaml
+cp "${PROJECT_ROOT}/config/suricata/suricata.yaml" /etc/suricata/suricata.yaml
 
-# Copiar archivos de clasificación y referencia
-echo "[+] Copiando archivos de clasificación y referencia..."
-cp rules/et_rules/emerging.rules/rules/classification.config /etc/suricata/
-cp rules/et_rules/emerging.rules/rules/reference.config /etc/suricata/
+# Asignar permisos correctos
+chown -R suricata:suricata /var/log/theguard/suricata
+chown -R suricata:suricata /etc/suricata
+
+# Configurar sistema de logging
+echo "[+] Configurando sistema de logging..."
+mkdir -p /var/log/theguard/suricata
+chown -R suricata:suricata /var/log/theguard/suricata
 
 # Configurar variables de red
 echo "[+] Configurando variables de red..."
@@ -180,44 +222,12 @@ suricata-update
 
 # Configurar monitoreo de recursos
 echo "[+] Configurando monitoreo de recursos..."
-cat > /usr/local/bin/monitor_suricata.sh << EOF
-#!/bin/bash
-ALERT_THRESHOLD_CPU=80
-ALERT_THRESHOLD_MEM=80
-ALERT_INTERVAL=300  # 5 minutos
-
-while true; do
-    # Monitorear CPU y Memoria
-    CPU=\$(ps aux | grep suricata | grep -v grep | awk '{print \$3}')
-    MEM=\$(ps aux | grep suricata | grep -v grep | awk '{print \$4}')
-    
-    # Monitorear uso de disco
-    DISK_USAGE=\$(df /var/log/theguard/suricata | awk 'NR==2 {print \$5}' | sed 's/%//')
-    
-    # Verificar rendimiento y generar alertas
-    if (( \$(echo "\${CPU} > \${ALERT_THRESHOLD_CPU}" | bc -l) )); then
-        logger -t suricata-monitor "ALERTA: Alto uso de CPU: \${CPU}%"
-    fi
-    
-    if (( \$(echo "\${MEM} > \${ALERT_THRESHOLD_MEM}" | bc -l) )); then
-        logger -t suricata-monitor "ALERTA: Alto uso de memoria: \${MEM}%"
-    fi
-    
-    if [ "\${DISK_USAGE}" -gt 90 ]; then
-        logger -t suricata-monitor "ALERTA: Alto uso de disco: \${DISK_USAGE}%"
-    fi
-    
-    # Verificar estado del servicio
-    if ! systemctl is-active --quiet suricata; then
-        logger -t suricata-monitor "CRÍTICO: Servicio Suricata caído, intentando reiniciar..."
-        systemctl restart suricata
-    fi
-    
-    sleep \${ALERT_INTERVAL}
-done
-EOF
-
-chmod +x /usr/local/bin/monitor_suricata.sh
+if [ -f "${SCRIPT_DIR}/monitor_suricata.sh" ]; then
+    cp "${SCRIPT_DIR}/monitor_suricata.sh" /usr/local/bin/
+    chmod +x /usr/local/bin/monitor_suricata.sh
+else
+    echo "[!] Advertencia: No se encontró script de monitoreo"
+fi
 
 # Crear servicio de monitoreo
 cat > /etc/systemd/system/suricata-monitor.service << EOF
@@ -254,10 +264,14 @@ chmod +x /usr/local/bin/backup_suricata_rules.sh
 # Configurar backup automático diario
 echo "0 0 * * * root /usr/local/bin/backup_suricata_rules.sh" > /etc/cron.d/suricata-backup
 
-# Configurar script de reportes
+# Configurar sistema de reportes
 echo "[+] Configurando sistema de reportes..."
-cp suricata_report.sh /usr/local/bin/
-chmod +x /usr/local/bin/suricata_report.sh
+if [ -f "${SCRIPT_DIR}/suricata_report.sh" ]; then
+    cp "${SCRIPT_DIR}/suricata_report.sh" /usr/local/bin/
+    chmod +x /usr/local/bin/suricata_report.sh
+else
+    echo "[!] Advertencia: No se encontró script de reportes"
+fi
 
 # Configurar reporte diario
 echo "0 6 * * * root /usr/local/bin/suricata_report.sh" > /etc/cron.d/suricata-report
