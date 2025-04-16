@@ -51,6 +51,8 @@ app-layer:
       enabled: yes
     ssh:
       enabled: yes
+    dnp3:
+      enabled: yes
 
 # Reglas y clasificaciones
 default-rule-path: modules/ids_signatures/rules
@@ -58,8 +60,8 @@ rule-files:
   - rules/custom_rules.rules
   - rules/et_rules/emerging.rules/rules/*.rules
 
-classification-file: /etc/suricata/rules/classification.config
-reference-config-file: /etc/suricata/rules/reference.config
+classification-file: modules/ids_signatures/rules/rules/et_rules/emerging.rules/rules/classification.config
+reference-config-file: modules/ids_signatures/rules/rules/et_rules/emerging.rules/rules/reference.config
 
 # Stats configuration to address the warning
 stats:
@@ -68,6 +70,11 @@ stats:
   append: yes
   totals: yes
   threads: yes
+  # Añadiendo loggers activos
+  loggers:
+    - eve-log
+    - file
+    - unified2-alert
 
 # Configuración de logging
 logging:
