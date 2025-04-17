@@ -4,6 +4,27 @@
 
 # Network variable configuration
 vars:
+  # Define port groups
+  port-groups:
+    HTTP_PORTS: "80"
+    SHELLCODE_PORTS: "!80"
+    ORACLE_PORTS: 1521
+    SSH_PORTS: 22
+    DNP3_PORTS: 20000
+    MODBUS_PORTS: 502
+    FILE_DATA_PORTS: "[$HTTP_PORTS,110,143]"
+    FTP_PORTS: 21
+    GENEVE_PORTS: 6081
+    VXLAN_PORTS: 4789
+    TEREDO_PORTS: 3544
+    SIP_PORTS: "[5060,5061]"
+    RDP_PORTS: 3389
+    MYSQL_PORTS: 3306
+    PGSQL_PORTS: 5432
+    ELASTIC_PORTS: 9200
+    MONGO_PORTS: 27017
+
+  # Define address groups
   address-groups:
     HOME_NET: "[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]"
     EXTERNAL_NET: "!$HOME_NET"
@@ -13,11 +34,18 @@ vars:
     SMTP_SERVERS: "$HOME_NET"
     TELNET_SERVERS: "$HOME_NET"
     AIM_SERVERS: "$EXTERNAL_NET"
+    DC_SERVERS: "$HOME_NET"
+    DNP3_SERVER: "$HOME_NET"
+    DNP3_CLIENT: "$HOME_NET"
+    MODBUS_CLIENT: "$HOME_NET"
+    MODBUS_SERVER: "$HOME_NET"
+    ENIP_CLIENT: "$HOME_NET"
+    ENIP_SERVER: "$HOME_NET"
 
 # Stats configuration
 stats:
   enabled: yes
-  interval: 10
+  interval: 8
   decoder-events: true
   http-events: true
   dns-events: true
@@ -29,46 +57,121 @@ outputs:
       enabled: yes
       filetype: regular
       filename: /var/log/theguard/suricata/eve.json
+      community-id: true
+      community-id-seed: 0
       types:
         - alert
         - http
         - dns
         - tls
+        - files
         - ssh
+        - flow
+        - netflow
+        - smtp
+        - stats
+
   - stats:
       enabled: yes
       filename: stats.log
-      interval: 10
+      interval: 8
+      append: yes
+      totals: yes
+      threads: no
+
+  - fast:
+      enabled: yes
+      filename: fast.log
+      append: yes
 
 # Performance optimizations
 max-pending-packets: 1024
-detect-engine:
-  - profile: medium
-  - custom-values:
-      toclient-src-groups: 2
-      toclient-dst-groups: 2
-      toclient-sp-groups: 2
-      toclient-dp-groups: 3
-      toserver-src-groups: 2
-      toserver-dst-groups: 4
-      toserver-sp-groups: 2
-      toserver-dp-groups: 25
-  - sgh-mpm-context: auto
-  - inspection-recursion-limit: 3000
 
-# Detection configuration
+# Detection Engine Configuration
+detect:
+  profile: medium
+  custom-values:
+    toclient-groups: 3
+    toserver-groups: 25
+  sgh-mpm-context: auto
+  inspection-recursion-limit: 3000
+  # Enable prefiltering
+  prefilter:
+    default: mpm
+  # Thresholding
+  thresholds:
+    hash-size: 16384
+    memcap: 32 MiB
+
+# App Layer Protocol Configuration
 app-layer:
   protocols:
     tls:
       enabled: yes
+      detection-ports:
+        dp: 443
+      ja3-fingerprints: auto
     http:
       enabled: yes
-    dns:
+      libhtp:
+        default-config:
+          personality: IDS
+          request-body-limit: 100kb
+          response-body-limit: 100kb
+    smtp:
       enabled: yes
+      raw-extraction: no
+      mime:
+        decode-mime: yes
+        decode-base64: yes
+        decode-quoted-printable: yes
     ssh:
       enabled: yes
-    dnp3:
-      enabled: yes
+    dns:
+      tcp:
+        enabled: yes
+        detection-ports:
+          dp: 53
+      udp:
+        enabled: yes
+        detection-ports:
+          dp: 53
+
+# Flow Settings
+flow:
+  memcap: 128mb
+  hash-size: 65536
+  prealloc: 10000
+  emergency-recovery: 30
+  
+# Stream Configuration
+stream:
+  memcap: 64mb
+  checksum-validation: yes
+  inline: auto
+  reassembly:
+    memcap: 256mb
+    depth: 1mb
+    toserver-chunk-size: 2560
+    toclient-chunk-size: 2560
+    randomize-chunk-size: yes
+
+# Threading
+threading:
+  set-cpu-affinity: yes
+  cpu-affinity:
+    - management-cpu-set:
+        cpu: [ 0 ]
+    - receive-cpu-set:
+        cpu: [ 0 ]
+    - worker-cpu-set:
+        cpu: [ "all" ]
+        mode: "exclusive"
+        prio:
+          low: [ 0 ]
+          medium: [ "1-2" ]
+          high: [ 3 ]
+          default: "medium"
 
 # Rules and classifications
 default-rule-path: /etc/suricata/rules
@@ -99,3 +202,61 @@ af-packet:
     defrag: yes
     use-mmap: yes
     tpacket-v3: yes
+
+# Host OS Policy configuration
+host-os-policy:
+  windows: [0.0.0.0/0]
+  bsd: []
+  linux: []
+  macos: []
+
+# Advanced Capture Options
+capture:
+  disable-offloading: true
+  checksum-validation: auto
+
+# Defrag settings
+defrag:
+  memcap: 32mb
+  hash-size: 65536
+  trackers: 65535
+  max-frags: 65535
+  prealloc: yes
+  timeout: 60
+
+# Advanced Detection Settings
+mpm-algo: auto
+spm-algo: auto
+pcre:
+  match-limit: 3500
+  match-limit-recursion: 1500
+
+# Profiling Settings
+profiling:
+  rules:
+    enabled: yes
+    filename: rule_perf.log
+    append: yes
+    sort: avgticks
+    limit: 10
+  keywords:
+    enabled: yes
+    filename: keyword_perf.log
+  prefilter:
+    enabled: yes
+    filename: prefilter_perf.log
+
+# Advanced Security Settings
+security:
+  limit-noproc: true
+
+# IP Reputation
+reputation-categories-file: /etc/suricata/iprep/categories.txt
+default-reputation-path: /etc/suricata/iprep
+reputation-files:
+  - reputation.list
+
+# Engine Analysis
+engine-analysis:
+  rules-fast-pattern: yes
+  rules: yes
