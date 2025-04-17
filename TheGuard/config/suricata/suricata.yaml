@@ -73,7 +73,7 @@ outputs:
 
   - stats:
       enabled: yes
-      filename: stats.log
+      filename: /var/log/theguard/suricata/stats.json
       interval: 8
       append: yes
       totals: yes
@@ -81,7 +81,7 @@ outputs:
 
   - fast:
       enabled: yes
-      filename: fast.log
+      filename: /var/log/theguard/suricata/fast.log
       append: yes
 
 # Performance optimizations
