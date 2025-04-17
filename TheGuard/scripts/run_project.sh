@@ -155,6 +155,8 @@ suricata-update
 # Copiar reglas personalizadas
 echo -e "${YELLOW}[*] Instalando reglas personalizadas...${NC}"
 cp "${BASE_DIR}/modules/ids_signatures/rules/custom_rules.rules" /etc/suricata/rules/
+cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/*" /etc/suricata/rules/
+
 systemctl restart suricata
 
 # Iniciar el procesador de alertas de Suricata
