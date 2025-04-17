@@ -174,10 +174,10 @@ threading:
           default: "medium"
 
 # Rules and classifications
-default-rule-path: /var/lib/suricata/rules
+default-rule-path: /config/suricata/rules
 rule-files:
-  - suricata.rules
   - custom/*.rules
+  - et_rules/*.rules
 
 classification-file: /config/suricata/rules/et_rules/classification.config
 reference-config-file: /config/suricata/rules/et_rules/reference.config
