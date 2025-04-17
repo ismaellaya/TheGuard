@@ -3,7 +3,7 @@
 # Control de instancia única
 LOCK_FILE="/var/run/suricata_setup.lock"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 
 # Verificar si ya hay una instalación en proceso
 if [ -f "$LOCK_FILE" ]; then
@@ -161,21 +161,6 @@ systemctl restart suricata
 echo "[+] Configurando sistema de logging..."
 mkdir -p /var/log/theguard/suricata
 chown -R suricata:suricata /var/log/theguard/suricata
-
-# Configurar variables de red
-echo "[+] Configurando variables de red..."
-# Instead of appending, we'll use sed to update the existing vars section
-sed -i '/^vars:/,/^[[:alpha:]]/ c\vars:\n  address-groups:\n    HOME_NET: "[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]"\n    EXTERNAL_NET: "!$HOME_NET"\n    HTTP_SERVERS: "$HOME_NET"\n    SQL_SERVERS: "$HOME_NET"\n    DNS_SERVERS: "$HOME_NET"\n    SMTP_SERVERS: "$HOME_NET"\n    TELNET_SERVERS: "$HOME_NET"\n    AIM_SERVERS: "$EXTERNAL_NET"' /etc/suricata/suricata.yaml
-
-# Habilitar protocolos requeridos
-echo "[+] Habilitando protocolos adicionales..."
-sed -i 's/dnp3: no/dnp3: yes/' /etc/suricata/suricata.yaml
-sed -i 's/modbus: no/modbus: yes/' /etc/suricata/suricata.yaml
-
-# Configurar stats logger
-echo "[+] Configurando stats logger..."
-# Update stats configuration using sed
-sed -i '/^stats:/,/^[[:alpha:]]/ c\stats:\n  enabled: yes\n  interval: 10\n  decoder-events: true\n  http-events: true\n  dns-events: true\n  tls-events: true\n\noutputs:\n  - stats:\n      enabled: yes\n      filename: stats.log\n      interval: 10' /etc/suricata/suricata.yaml
 
 # Configuración de logging mejorada
 echo "[+] Configurando sistema de logging..."
