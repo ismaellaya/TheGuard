@@ -113,26 +113,7 @@ if [ -f "${SCRIPT_DIR}/rules.rar" ]; then
     cd /etc/suricata/rules/
     # Extraer el archivo .rar
     unrar x "${SCRIPT_DIR}/rules.rar"
-    
-    # Mover archivos de configuración a /etc/suricata/rules
-    if [ -f "rules/et_rules/emerging.rules/rules/classification.config" ]; then
-        cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/classification.config" /etc/suricata/rules/
-    fi
-    if [ -f "rules/et_rules/emerging.rules/rules/reference.config" ]; then
-        cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/reference.config" /etc/suricata/rules/
-    fi
-    
-    # Mover todas las reglas .rules al directorio principal
-    find rules/et_rules/emerging.rules/rules/ -name "*.rules" -exec cp {} . \;
-    
-
-    # Copiar configuración personalizadas
-    echo -e "${YELLOW}[*] Instalando PRIMERA config personalizada ...${NC}"
-    cp "${BASE_DIR}/config/suricata/suricata.yaml" /etc/suricata/
-
-    # Actualizar reglas de Suricata
-    echo -e "${YELLOW}[*] Actualizando reglas de Suricata...${NC}"
-    suricata-update
+   
 
     # Copiar reglas personalizadas
     echo -e "${YELLOW}[*] Instalando reglas personalizadas...${NC}"
@@ -144,17 +125,26 @@ else
     exit 1
 fi
 
-# Copiar reglas personalizadas
-echo "[+] Instalando reglas personalizadas..."
-if [ -f "${SCRIPT_DIR}/rules/custom_rules.rules" ]; then
-    cp "${SCRIPT_DIR}/rules/custom_rules.rules" /etc/suricata/rules/custom/
-else
-    echo "[!] Advertencia: No se encontraron reglas personalizadas"
+ 
+    # Mover archivos de configuración a /etc/suricata/rules
+if [ -f "rules/et_rules/emerging.rules/rules/classification.config" ]; then
+    cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/classification.config" /etc/suricata/rules/
 fi
+if [ -f "rules/et_rules/emerging.rules/rules/reference.config" ]; then
+    cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/reference.config" /etc/suricata/rules/
+fi
+    
+    # Mover todas las reglas .rules al directorio principal
+find rules/et_rules/emerging.rules/rules/ -name "*.rules" -exec cp {} . \;
+    
 
-# Copiar configuración personalizada
-echo "${YELLOW}[*][+] Copiando configuración personalizada...${NC}"
-cp "${PROJECT_ROOT}/config/suricata/suricata.yaml" /etc/suricata/suricata.yaml
+   
+    # Actualizar reglas de Suricata
+echo -e "${YELLOW}[*] Actualizando reglas de Suricata...${NC}"
+suricata-update
+     # Copiar configuración personalizadas
+echo -e "${YELLOW}[*] Instalando PRIMERA config personalizada ...${NC}"
+cp "${BASE_DIR}/config/suricata/suricata.yaml" /etc/suricata/
 
 # Asignar permisos correctos
 chown -R suricata:suricata /var/log/theguard/suricata
