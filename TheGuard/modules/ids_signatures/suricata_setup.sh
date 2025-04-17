@@ -80,41 +80,22 @@ check_requirements() {
 
 check_requirements
 
-# Instalar Suricata y dependencias
+# Crear directorios necesarios
+echo "[+] Creando directorios..."
+mkdir -p /var/log/theguard/suricata
+mkdir -p /var/lib/suricata/backup
+mkdir -p /etc/suricata/rules/custom
+
+# Instalar dependencias
 echo "[+] Instalando dependencias..."
 apt-get update
-apt-get install -y software-properties-common
+apt-get install -y suricata unrar-free
 
-# Detectar distribución
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    case $ID in
-        debian|raspbian)
-            apt-get install -y suricata
-            ;;
-        ubuntu)
-            add-apt-repository ppa:oisf/suricata-stable
-            apt-get update
-            apt-get install -y suricata
-            ;;
-        *)
-            echo "[!] Distribución no soportada: $ID"
-            exit 1
-            ;;
-    esac
-fi
-
-# Crear directorios necesarios
-echo "[+] Configurando directorios..."
-mkdir -p /var/log/theguard/suricata
-mkdir -p /etc/suricata/rules/custom
-mkdir -p /var/lib/suricata/backup
-chmod -R 750 /var/log/theguard/suricata
-
-# Configurar usuario y grupo de Suricata
+# Configurar usuario y grupo
 if ! getent group suricata >/dev/null; then
-    groupadd suricata
+    groupadd -r suricata
 fi
+
 if ! getent passwd suricata >/dev/null; then
     useradd -r -g suricata -s /sbin/nologin suricata
 fi
@@ -125,18 +106,37 @@ if [ -f "/etc/suricata/suricata.yaml" ]; then
     cp /etc/suricata/suricata.yaml "/var/lib/suricata/backup/suricata.yaml.$(date +%Y%m%d_%H%M%S)"
 fi
 
+# Extraer reglas del archivo .rar
+echo "[+] Extrayendo reglas..."
+if [ -f "${SCRIPT_DIR}/rules.rar" ]; then
+    cd /etc/suricata/rules/
+    # Extraer el archivo .rar
+    unrar x "${SCRIPT_DIR}/rules.rar"
+    
+    # Mover archivos de configuración
+    if [ -f "rules/et_rules/emerging.rules/rules/classification.config" ]; then
+        cp rules/et_rules/emerging.rules/rules/classification.config ./
+    fi
+    if [ -f "rules/et_rules/emerging.rules/rules/reference.config" ]; then
+        cp rules/et_rules/emerging.rules/rules/reference.config ./
+    fi
+    
+    # Mover todas las reglas .rules al directorio principal
+    find rules/et_rules/emerging.rules/rules/ -name "*.rules" -exec cp {} . \;
+    
+    # Limpiar los archivos temporales
+    rm -rf rules/
+else
+    echo "[!] Error: Archivo rules.rar no encontrado en ${SCRIPT_DIR}/rules.rar"
+    exit 1
+fi
+
 # Copiar reglas personalizadas
 echo "[+] Instalando reglas personalizadas..."
 if [ -f "${SCRIPT_DIR}/rules/custom_rules.rules" ]; then
     cp "${SCRIPT_DIR}/rules/custom_rules.rules" /etc/suricata/rules/custom/
 else
     echo "[!] Advertencia: No se encontraron reglas personalizadas"
-fi
-
-if [ -d "${SCRIPT_DIR}/rules/et_rules" ]; then
-    cp -r "${SCRIPT_DIR}/rules/et_rules"/* /etc/suricata/rules/
-else
-    echo "[!] Advertencia: No se encontraron reglas ET"
 fi
 
 # Copiar configuración personalizada
@@ -146,6 +146,16 @@ cp "${PROJECT_ROOT}/config/suricata/suricata.yaml" /etc/suricata/suricata.yaml
 # Asignar permisos correctos
 chown -R suricata:suricata /var/log/theguard/suricata
 chown -R suricata:suricata /etc/suricata
+chmod -R 750 /etc/suricata/rules
+
+# Validar configuración
+echo "[+] Validando configuración..."
+suricata -T -c /etc/suricata/suricata.yaml
+
+# Configurar servicio
+echo "[+] Configurando servicio Suricata..."
+systemctl enable suricata
+systemctl restart suricata
 
 # Configurar sistema de logging
 echo "[+] Configurando sistema de logging..."

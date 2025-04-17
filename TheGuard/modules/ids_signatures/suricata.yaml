@@ -1,0 +1,85 @@
+%YAML 1.1
+---
+# Suricata configuration file
+
+# Configuración básica de Suricata
+vars:
+  address-groups:
+    HOME_NET: "[192.168.4.0/24]"
+    EXTERNAL_NET: "!$HOME_NET"
+  port-groups:
+    HTTP_PORTS: "80,8080,3000"
+    SSH_PORTS: "22"
+
+# Configuración de outputs
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: /var/log/theguard/suricata/eve.json
+      types:
+        - alert
+        - http
+        - dns
+        - tls
+        - ssh
+
+# Optimizaciones de rendimiento
+max-pending-packets: 1024
+detect-engine:
+  - profile: medium
+  - custom-values:
+      toclient-src-groups: 2
+      toclient-dst-groups: 2
+      toclient-sp-groups: 2
+      toclient-dp-groups: 3
+      toserver-src-groups: 2
+      toserver-dst-groups: 4
+      toserver-sp-groups: 2
+      toserver-dp-groups: 25
+  - sgh-mpm-context: auto
+  - inspection-recursion-limit: 3000
+
+# Configuración de detección
+app-layer:
+  protocols:
+    tls:
+      enabled: yes
+    http:
+      enabled: yes
+    dns:
+      enabled: yes
+    ssh:
+      enabled: yes
+    dnp3:
+      enabled: yes
+
+# Reglas y clasificaciones
+default-rule-path: /etc/suricata/rules
+rule-files:
+  - custom/*.rules
+  - *.rules
+
+classification-file: /etc/suricata/rules/classification.config
+reference-config-file: /etc/suricata/rules/reference.config
+
+# Configuración de logging
+logging:
+  default-log-level: info
+  outputs:
+    - console:
+        enabled: yes
+    - file:
+        enabled: yes
+        filename: /var/log/theguard/suricata/suricata.log
+        level: info
+
+# Configuración de captura de paquetes
+af-packet:
+  - interface: eth0
+    threads: auto
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+    use-mmap: yes
+    tpacket-v3: yes
