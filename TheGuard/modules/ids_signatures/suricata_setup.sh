@@ -164,8 +164,7 @@ chown -R suricata:suricata /var/log/theguard/suricata
 
 # Configurar variables de red
 echo "[+] Configurando variables de red..."
-cat >> /etc/suricata/suricata.yaml << EOF
-
+cat > /tmp/network_vars.yaml << 'EOF'
 vars:
   address-groups:
     HOME_NET: "[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]"
@@ -178,6 +177,15 @@ vars:
     AIM_SERVERS: "$EXTERNAL_NET"
 EOF
 
+# Hacer backup del archivo de configuración actual
+cp /etc/suricata/suricata.yaml /etc/suricata/suricata.yaml.bak
+
+# Remover la sección vars existente si existe
+sed -i '/^vars:/,/^[a-z]/d' /etc/suricata/suricata.yaml
+
+# Añadir las nuevas variables de red
+cat /tmp/network_vars.yaml >> /etc/suricata/suricata.yaml
+
 # Habilitar protocolos requeridos
 echo "[+] Habilitando protocolos adicionales..."
 sed -i 's/dnp3: no/dnp3: yes/' /etc/suricata/suricata.yaml
@@ -185,8 +193,7 @@ sed -i 's/modbus: no/modbus: yes/' /etc/suricata/suricata.yaml
 
 # Configurar stats logger
 echo "[+] Configurando stats logger..."
-cat >> /etc/suricata/suricata.yaml << EOF
-
+cat > /tmp/stats_config.yaml << 'EOF'
 stats:
   enabled: yes
   interval: 10
@@ -201,6 +208,15 @@ outputs:
       filename: stats.log
       interval: 10
 EOF
+
+# Remover la sección stats existente si existe
+sed -i '/^stats:/,/^[a-z]/d' /etc/suricata/suricata.yaml
+
+# Añadir la nueva configuración de stats
+cat /tmp/stats_config.yaml >> /etc/suricata/suricata.yaml
+
+# Limpiar archivos temporales
+rm -f /tmp/network_vars.yaml /tmp/stats_config.yaml
 
 # Configuración de logging mejorada
 echo "[+] Configurando sistema de logging..."
