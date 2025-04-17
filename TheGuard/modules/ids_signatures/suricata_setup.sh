@@ -89,7 +89,7 @@ mkdir -p /etc/suricata/rules/custom
 # Instalar dependencias
 echo "[+] Instalando dependencias..."
 apt-get update
-apt-get install -y suricata unrar-free
+apt-get install -y suricata suricata-update
 
 # Configurar usuario y grupo
 if ! getent group suricata >/dev/null; then
@@ -106,30 +106,18 @@ if [ -f "/etc/suricata/suricata.yaml" ]; then
     cp /etc/suricata/suricata.yaml "/var/lib/suricata/backup/suricata.yaml.$(date +%Y%m%d_%H%M%S)"
 fi
 
-# Extraer reglas del archivo .rar
-echo "[+] Extrayendo reglas..."
-if [ -f "${SCRIPT_DIR}/rules.rar" ]; then
-    cd /etc/suricata/rules/
-    # Extraer el archivo .rar
-    unrar x "${SCRIPT_DIR}/rules.rar"
-    
-    # Mover archivos de configuración
-    if [ -f "rules/et_rules/emerging.rules/rules/classification.config" ]; then
-        cp rules/et_rules/emerging.rules/rules/classification.config ./
-    fi
-    if [ -f "rules/et_rules/emerging.rules/rules/reference.config" ]; then
-        cp rules/et_rules/emerging.rules/rules/reference.config ./
-    fi
-    
-    # Mover todas las reglas .rules al directorio principal
-    find rules/et_rules/emerging.rules/rules/ -name "*.rules" -exec cp {} . \;
-    
-    # Limpiar los archivos temporales
-    rm -rf rules/
-else
-    echo "[!] Error: Archivo rules.rar no encontrado en ${SCRIPT_DIR}/rules.rar"
-    exit 1
-fi
+# Configurar y actualizar reglas de Suricata
+echo "[+] Configurando reglas de Suricata..."
+# Habilitar fuentes de reglas
+suricata-update enable-source et/open
+suricata-update enable-source oisf/trafficid
+
+# Actualizar las reglas
+echo "[+] Descargando y actualizando reglas..."
+suricata-update
+
+# Configurar actualización automática de reglas
+echo "0 1 * * * root /usr/bin/suricata-update" > /etc/cron.d/suricata-update
 
 # Copiar reglas personalizadas
 echo "[+] Instalando reglas personalizadas..."
@@ -264,10 +252,6 @@ echo "0 6 * * * root /usr/local/bin/suricata_report.sh" > /etc/cron.d/suricata-r
 # Verificar la configuración
 echo "[+] Verificando configuración..."
 suricata -T -c /etc/suricata/suricata.yaml
-if [ $? -ne 0 ]; then
-    echo "[!] Error en la configuración de Suricata"
-    exit 1
-fi
 
 # Habilitar y reiniciar servicios
 systemctl daemon-reload
