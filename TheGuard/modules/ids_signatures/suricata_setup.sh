@@ -117,8 +117,8 @@ if [ -f "${SCRIPT_DIR}/rules.rar" ]; then
 
     # Copiar reglas personalizadas
     echo -e "${YELLOW}[*] Instalando reglas personalizadas...${NC}"
-    cp "${BASE_DIR}/modules/ids_signatures/rules/custom_rules.rules" /etc/suricata/rules/
-    cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/"*.rules /etc/suricata/rules/
+    cp "${BASE_DIR}/ids_signatures/rules/custom_rules.rules" /etc/suricata/rules/
+    cp "${BASE_DIR}/ids_signatures/rules/et_rules/emerging.rules/rules/"*.rules /etc/suricata/rules/
     rm -rf rules/
 else
     echo "[!] Error: Archivo rules.rar no encontrado en ${SCRIPT_DIR}/rules.rar"
@@ -128,10 +128,10 @@ fi
  
     # Mover archivos de configuración a /etc/suricata/rules
 if [ -f "rules/et_rules/emerging.rules/rules/classification.config" ]; then
-    cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/classification.config" /etc/suricata/rules/
+    cp "${BASE_DIR}/ids_signatures/rules/et_rules/emerging.rules/rules/classification.config" /etc/suricata/rules/
 fi
 if [ -f "rules/et_rules/emerging.rules/rules/reference.config" ]; then
-    cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/reference.config" /etc/suricata/rules/
+    cp "${BASE_DIR}/ids_signatures/rules/et_rules/emerging.rules/rules/reference.config" /etc/suricata/rules/
 fi
     
     # Mover todas las reglas .rules al directorio principal
