@@ -55,26 +55,13 @@ app-layer:
       enabled: yes
 
 # Reglas y clasificaciones
-default-rule-path: modules/ids_signatures/rules
+default-rule-path: /etc/suricata/rules
 rule-files:
-  - rules/custom_rules.rules
-  - rules/et_rules/emerging.rules/rules/*.rules
+  - custom/*.rules
+  - *.rules
 
-classification-file: modules/ids_signatures/rules/rules/et_rules/emerging.rules/rules/classification.config
-reference-config-file: modules/ids_signatures/rules/rules/et_rules/emerging.rules/rules/reference.config
-
-# Stats configuration to address the warning
-stats:
-  enabled: yes
-  filename: logs/suricata/stats.log
-  append: yes
-  totals: yes
-  threads: yes
-  # Añadiendo loggers activos
-  loggers:
-    - eve-log
-    - file
-    - unified2-alert
+classification-file: /etc/suricata/rules/classification.config
+reference-config-file: /etc/suricata/rules/reference.config
 
 # Configuración de logging
 logging:
