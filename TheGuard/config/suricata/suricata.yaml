@@ -2,16 +2,28 @@
 ---
 # Suricata configuration file
 
-# Configuración básica de Suricata
+# Network variable configuration
 vars:
   address-groups:
-    HOME_NET: "[192.168.4.0/24]"
+    HOME_NET: "[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]"
     EXTERNAL_NET: "!$HOME_NET"
-  port-groups:
-    HTTP_PORTS: "80,8080,3000"
-    SSH_PORTS: "22"
+    HTTP_SERVERS: "$HOME_NET"
+    SQL_SERVERS: "$HOME_NET"
+    DNS_SERVERS: "$HOME_NET"
+    SMTP_SERVERS: "$HOME_NET"
+    TELNET_SERVERS: "$HOME_NET"
+    AIM_SERVERS: "$EXTERNAL_NET"
 
-# Configuración de outputs
+# Stats configuration
+stats:
+  enabled: yes
+  interval: 10
+  decoder-events: true
+  http-events: true
+  dns-events: true
+  tls-events: true
+
+# Logging configuration
 outputs:
   - eve-log:
       enabled: yes
@@ -23,8 +35,12 @@ outputs:
         - dns
         - tls
         - ssh
+  - stats:
+      enabled: yes
+      filename: stats.log
+      interval: 10
 
-# Optimizaciones de rendimiento
+# Performance optimizations
 max-pending-packets: 1024
 detect-engine:
   - profile: medium
@@ -40,7 +56,7 @@ detect-engine:
   - sgh-mpm-context: auto
   - inspection-recursion-limit: 3000
 
-# Configuración de detección
+# Detection configuration
 app-layer:
   protocols:
     tls:
@@ -54,16 +70,16 @@ app-layer:
     dnp3:
       enabled: yes
 
-# Reglas y clasificaciones
+# Rules and classifications
 default-rule-path: /etc/suricata/rules
 rule-files:
   - custom/*.rules
-  - *.rules
+  - "*.rules"
 
 classification-file: /etc/suricata/rules/classification.config
 reference-config-file: /etc/suricata/rules/reference.config
 
-# Configuración de logging
+# Logging configuration
 logging:
   default-log-level: info
   outputs:
@@ -74,7 +90,7 @@ logging:
         filename: /var/log/theguard/suricata/suricata.log
         level: info
 
-# Configuración de captura de paquetes
+# Packet capture configuration
 af-packet:
   - interface: eth0
     threads: auto
