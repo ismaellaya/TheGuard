@@ -148,6 +148,10 @@ setup_ap
 # Configurar Suricata
 setup_suricata
 
+# Copiar configuración personalizadas
+echo -e "${YELLOW}[*] Instalando config personalizada...${NC}"
+cp "${BASE_DIR}/config/suricata/suricata.yaml" /etc/suricata/
+
 # Actualizar reglas de Suricata
 echo -e "${YELLOW}[*] Actualizando reglas de Suricata...${NC}"
 suricata-update
@@ -155,7 +159,9 @@ suricata-update
 # Copiar reglas personalizadas
 echo -e "${YELLOW}[*] Instalando reglas personalizadas...${NC}"
 cp "${BASE_DIR}/modules/ids_signatures/rules/custom_rules.rules" /etc/suricata/rules/
-cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/*" /etc/suricata/rules/
+cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/"*.rules /etc/suricata/rules/
+
+
 
 systemctl restart suricata
 
