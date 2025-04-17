@@ -4,6 +4,7 @@
 LOCK_FILE="/var/run/suricata_setup.lock"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 
 # Verificar si ya hay una instalación en proceso
 if [ -f "$LOCK_FILE" ]; then
@@ -113,18 +114,30 @@ if [ -f "${SCRIPT_DIR}/rules.rar" ]; then
     # Extraer el archivo .rar
     unrar x "${SCRIPT_DIR}/rules.rar"
     
-    # Mover archivos de configuración
+    # Mover archivos de configuración a /etc/suricata/rules
     if [ -f "rules/et_rules/emerging.rules/rules/classification.config" ]; then
-        cp rules/et_rules/emerging.rules/rules/classification.config ./
+        cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/classification.config" /etc/suricata/rules/
     fi
     if [ -f "rules/et_rules/emerging.rules/rules/reference.config" ]; then
-        cp rules/et_rules/emerging.rules/rules/reference.config ./
+        cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/reference.config" /etc/suricata/rules/
     fi
     
     # Mover todas las reglas .rules al directorio principal
     find rules/et_rules/emerging.rules/rules/ -name "*.rules" -exec cp {} . \;
     
-    # Limpiar los archivos temporales
+
+    # Copiar configuración personalizadas
+    echo -e "${YELLOW}[*] Instalando PRIMERA config personalizada ...${NC}"
+    cp "${BASE_DIR}/config/suricata/suricata.yaml" /etc/suricata/
+
+    # Actualizar reglas de Suricata
+    echo -e "${YELLOW}[*] Actualizando reglas de Suricata...${NC}"
+    suricata-update
+
+    # Copiar reglas personalizadas
+    echo -e "${YELLOW}[*] Instalando reglas personalizadas...${NC}"
+    cp "${BASE_DIR}/modules/ids_signatures/rules/custom_rules.rules" /etc/suricata/rules/
+    cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/"*.rules /etc/suricata/rules/
     rm -rf rules/
 else
     echo "[!] Error: Archivo rules.rar no encontrado en ${SCRIPT_DIR}/rules.rar"
