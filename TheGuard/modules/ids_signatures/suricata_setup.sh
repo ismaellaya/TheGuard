@@ -3,7 +3,7 @@
 # Control de instancia única
 LOCK_FILE="/var/run/suricata_setup.lock"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 # Verificar si ya hay una instalación en proceso
 if [ -f "$LOCK_FILE" ]; then
