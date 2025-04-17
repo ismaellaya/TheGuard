@@ -173,10 +173,9 @@ threading:
           high: [ 3 ]
           default: "medium"
 
-# Rules and classifications
-default-rule-path: /etc/suricata/rules/
+default-rule-path: /config/suricata/
 rule-files:
-  - *.rules
+  - rules/*.rules
 
 classification-file: /etc/suricata/rules/classification.config
 reference-config-file: /etc/suricata/rules/reference.config
