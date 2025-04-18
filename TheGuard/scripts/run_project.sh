@@ -148,6 +148,12 @@ setup_ap
 # Configurar Suricata
 setup_suricata
 
+echo -e "${YELLOW}[*] Instalando configuraciones personalizadas...${NC}"
+# Mover
+cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/classification.config" /etc/suricata/rules/
+cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/reference.config" /etc/suricata/rules/
+
+
 # Copiar configuración personalizadas
 echo -e "${YELLOW}[*] Instalando config personalizada...${NC}"
 cp "${BASE_DIR}/config/suricata/suricata.yaml" /etc/suricata/
