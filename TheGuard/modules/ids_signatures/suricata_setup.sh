@@ -144,7 +144,7 @@ echo -e "${YELLOW}[*] Actualizando reglas de Suricata...${NC}"
 suricata-update
      # Copiar configuración personalizadas
 echo -e "${YELLOW}[*] Instalando PRIMERA config personalizada ...${NC}"
-cp "${BASE_DIR}/config/suricata/suricata.yaml" /etc/suricata/
+cp "${PROJECT_ROOT}/config/suricata/suricata.yaml" /etc/suricata/
 
 # Asignar permisos correctos
 chown -R suricata:suricata /var/log/theguard/suricata
