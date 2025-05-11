@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify
 import yaml
 import os
-from modules.ids_signatures import get_integration
+from modules.ids_signatures.suricata_processor import get_integration
 
 app = Flask(__name__)
 
