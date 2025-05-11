@@ -9,6 +9,40 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# Función para instalar requisitos
+setup_requirements() {
+    echo -e "${YELLOW}[*] Instalando requisitos del sistema...${NC}"
+    
+    # Instalar requisitos del sistema
+    apt-get update
+    apt-get install -y build-essential python3-dev libssl-dev libffi-dev \
+                      cargo rustc libnetfilter-queue-dev libnfnetlink-dev \
+                      python3-pip python3-venv
+
+    # Crear y activar entorno virtual si no existe
+    if [ ! -d "${BASE_DIR}/venv" ]; then
+        echo -e "${YELLOW}[*] Creando entorno virtual...${NC}"
+        python3 -m venv "${BASE_DIR}/venv"
+    fi
+    
+    # Activar entorno virtual
+    source "${BASE_DIR}/venv/bin/activate"
+    
+    # Actualizar pip y herramientas básicas
+    pip install --upgrade pip setuptools wheel
+    
+    # Instalar requisitos de Python
+    echo -e "${YELLOW}[*] Instalando dependencias de Python...${NC}"
+    if [ -f "${BASE_DIR}/requirements.txt" ]; then
+        pip install -r "${BASE_DIR}/requirements.txt"
+    else
+        echo -e "${RED}[!] No se encontró requirements.txt${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}[+] Requisitos instalados correctamente${NC}"
+}
+
 # Función para crear y configurar directorios
 setup_directories() {
     echo -e "${YELLOW}[*] Creando estructura de directorios...${NC}"
@@ -42,6 +76,9 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Instalar requisitos
+setup_requirements
+
 # Crear y configurar directorios
 setup_directories
 
@@ -51,11 +88,18 @@ setup_ap() {
     
     # Instalar dependencias necesarias
     apt-get update
-    apt-get install -y hostapd dnsmasq
+    apt-get install -y hostapd dnsmasq iptables iptables-persistent
+
+    # Configurar iptables legacy
+    update-alternatives --set iptables /usr/sbin/iptables-legacy
+    update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
 
     # Detener servicios para la configuración
     systemctl stop hostapd
     systemctl stop dnsmasq
+
+    # Asegurar que WLAN no está bloqueada
+    rfkill unblock wlan
 
     # Configurar interfaz wireless
     cat > /etc/dhcpcd.conf << EOF
@@ -82,6 +126,9 @@ wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 EOF
 
+    # Configurar daemon de hostapd
+    sed -i 's|#DAEMON_CONF=.*|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd
+    
     # Configurar dnsmasq
     cat > /etc/dnsmasq.conf << EOF
 interface=wlan0
@@ -221,6 +268,7 @@ cleanup() {
     systemctl stop dnsmasq
     
     echo -e "${GREEN}[+] Todos los módulos detenidos correctamente${NC}"
+    exit 0
 }
 
 # Registrar función de limpieza para señales de terminación
