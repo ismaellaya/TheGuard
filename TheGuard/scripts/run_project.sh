@@ -18,11 +18,12 @@ setup_requirements() {
     apt-get install -y build-essential python3-dev libssl-dev libffi-dev \
                       cargo rustc libnetfilter-queue-dev libnfnetlink-dev \
                       python3-pip python3-venv
+    apt-get install -y python3-cryptography python3-bcrypt python3-netfilterqueue
 
     # Crear y activar entorno virtual si no existe
     if [ ! -d "${BASE_DIR}/venv" ]; then
         echo -e "${YELLOW}[*] Creando entorno virtual...${NC}"
-        python3 -m venv "${BASE_DIR}/venv"
+        python3 -m venv --system-site-packages "${BASE_DIR}/venv"
     fi
     
     # Activar entorno virtual
