@@ -26,7 +26,7 @@ setup_requirements() {
     fi
     
     # Activar entorno virtual
-      VENV_PIP="${BASE_DIR}/venv/bin/pip"
+  VENV_PIP="${BASE_DIR}/venv/bin/pip"
   VENV_PYTHON="${BASE_DIR}/venv/bin/python3"
 
   echo -e "${YELLOW}[*] Actualizando pip, setuptools y wheel…${NC}"
