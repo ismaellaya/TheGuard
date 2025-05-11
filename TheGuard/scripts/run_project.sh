@@ -26,21 +26,21 @@ setup_requirements() {
     fi
     
     # Activar entorno virtual
-    source "${BASE_DIR}/venv/bin/activate"
-    
-    # Actualizar pip y herramientas básicas
-    pip install --upgrade pip setuptools wheel
-    
-    # Instalar requisitos de Python
-    echo -e "${YELLOW}[*] Instalando dependencias de Python...${NC}"
-    if [ -f "${BASE_DIR}/requirements.txt" ]; then
-        pip install -r "${BASE_DIR}/requirements.txt"
-    else
-        echo -e "${RED}[!] No se encontró requirements.txt${NC}"
-        exit 1
-    fi
-    
-    echo -e "${GREEN}[+] Requisitos instalados correctamente${NC}"
+      VENV_PIP="${BASE_DIR}/venv/bin/pip"
+  VENV_PYTHON="${BASE_DIR}/venv/bin/python3"
+
+  echo -e "${YELLOW}[*] Actualizando pip, setuptools y wheel…${NC}"
+  $VENV_PIP install --upgrade pip setuptools wheel
+
+  if [ -f "${BASE_DIR}/requirements.txt" ]; then
+    echo -e "${YELLOW}[*] Instalando dependencias Python…${NC}"
+    $VENV_PIP install -r "${BASE_DIR}/requirements.txt"
+  else
+    echo -e "${RED}[!] No se encontró requirements.txt${NC}"
+    exit 1
+  fi
+
+  echo -e "${GREEN}[+] Requirements instalados correctamente${NC}"
 }
 
 # Función para crear y configurar directorios
