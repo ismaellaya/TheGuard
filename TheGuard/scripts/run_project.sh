@@ -15,78 +15,100 @@ setup_requirements() {
     
     # Instalar requisitos del sistema
     apt-get update
-    apt-get install -y \
-        build-essential python3-dev libssl-dev libffi-dev \
-        libnetfilter-queue-dev libnfnetlink-dev \
-        python3-pip python3-venv curl \
-        hostapd dnsmasq iptables iptables-persistent \
-        suricata || exit 1
+    apt-get install -y build-essential python3-dev libssl-dev libffi-dev \
+                      cargo rustc libnetfilter-queue-dev libnfnetlink-dev \
+                      python3-pip python3-venv
 
-    # Desinstalar cualquier Rust viejo de apt
-    apt-get remove -y rustc cargo || true
-
-    # Instalar rustup si no existe
-    if ! command -v rustup >/dev/null 2>&1; then
-        echo -e "${YELLOW}[*] Instalando Rust toolchain vía rustup...${NC}"
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-    fi
-
-    # Asegurar que rustup y rustc están en el PATH
-    export PATH="$HOME/.cargo/bin:$PATH"
-    rustup default stable
-
-    # Crear virtualenv si no existe
+    # Crear y activar entorno virtual si no existe
     if [ ! -d "${BASE_DIR}/venv" ]; then
         echo -e "${YELLOW}[*] Creando entorno virtual...${NC}"
         python3 -m venv "${BASE_DIR}/venv"
     fi
-
-    VENV_PIP="${BASE_DIR}/venv/bin/pip"
-    VENV_PYTHON="${BASE_DIR}/venv/bin/python3"
-
-    echo -e "${YELLOW}[*] Actualizando pip, setuptools y wheel…${NC}"
-    $VENV_PIP install --upgrade pip setuptools wheel
-
-    echo -e "${YELLOW}[*] Instalando dependencias Python…${NC}"
-    $VENV_PIP install -r "${BASE_DIR}/requirements.txt"
-
-    echo -e "${GREEN}[+] Requirements instalados correctamente${NC}"
+    
+    # Activar entorno virtual
+    source "${BASE_DIR}/venv/bin/activate"
+    
+    # Actualizar pip y herramientas básicas
+    pip install --upgrade pip setuptools wheel
+    
+    # Instalar requisitos de Python
+    echo -e "${YELLOW}[*] Instalando dependencias de Python...${NC}"
+    if [ -f "${BASE_DIR}/requirements.txt" ]; then
+        pip install -r "${BASE_DIR}/requirements.txt"
+    else
+        echo -e "${RED}[!] No se encontró requirements.txt${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}[+] Requisitos instalados correctamente${NC}"
 }
 
 # Función para crear y configurar directorios
 setup_directories() {
     echo -e "${YELLOW}[*] Creando estructura de directorios...${NC}"
     
+    # Crear directorios principales
     mkdir -p "${BASE_DIR}/logs"
     mkdir -p /var/log/theguard/suricata
     mkdir -p /etc/suricata/rules
     mkdir -p /var/lib/suricata/backup
     mkdir -p "${BASE_DIR}/modules/ids_signatures/rules"
     mkdir -p "${BASE_DIR}/modules/anomaly_analysis/model/trained_models"
-    chmod -R 755 "${BASE_DIR}/logs" /var/log/theguard /etc/suricata/rules
-    chown -R root:root "${BASE_DIR}/logs" /var/log/theguard /etc/suricata/rules
     
+    # Configurar permisos
+    chown -R root:root /var/log/theguard
+    chmod -R 755 /var/log/theguard
+    chown -R root:root /etc/suricata
+    chmod -R 755 /etc/suricata
+    
+    # Crear directorio para archivos temporales
     mkdir -p /tmp/theguard
     chmod 777 /tmp/theguard
     
     echo -e "${GREEN}[+] Directorios creados y configurados correctamente${NC}"
 }
 
-# Función para configurar Access Point
+echo -e "${GREEN}[+] Iniciando TheGuard...${NC}"
+
+# Verificar que se ejecuta como root
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${RED}Este script debe ejecutarse como root${NC}"
+    exit 1
+fi
+
+# Instalar requisitos
+setup_requirements
+
+# Crear y configurar directorios
+setup_directories
+
+# Configurar la Raspberry Pi como AP
 setup_ap() {
     echo -e "${YELLOW}[*] Configurando modo Access Point...${NC}"
     
+    # Instalar dependencias necesarias
+    apt-get update
+    apt-get install -y hostapd dnsmasq iptables iptables-persistent
+
+    # Configurar iptables legacy
     update-alternatives --set iptables /usr/sbin/iptables-legacy
     update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
-    systemctl stop hostapd dnsmasq
+
+    # Detener servicios para la configuración
+    systemctl stop hostapd
+    systemctl stop dnsmasq
+
+    # Asegurar que WLAN no está bloqueada
     rfkill unblock wlan
 
+    # Configurar interfaz wireless
     cat > /etc/dhcpcd.conf << EOF
 interface wlan0
     static ip_address=192.168.4.1/24
     nohook wpa_supplicant
 EOF
 
+    # Configurar hostapd
     cat > /etc/hostapd/hostapd.conf << EOF
 interface=wlan0
 driver=nl80211
@@ -104,104 +126,158 @@ wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 EOF
 
+    # Configurar daemon de hostapd
     sed -i 's|#DAEMON_CONF=.*|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd
-
+    
+    # Configurar dnsmasq
     cat > /etc/dnsmasq.conf << EOF
 interface=wlan0
 dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
 EOF
 
+    # Habilitar IP forwarding
     echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
     sysctl -p
 
+    # Configurar NAT
     iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+    
+    # Guardar reglas de iptables
     iptables-save > /etc/iptables.ipv4.nat
 
+    # Habilitar servicios
     systemctl unmask hostapd
-    systemctl enable hostapd dnsmasq
-    systemctl start hostapd dnsmasq
-
-    echo -e "${GREEN}[+] Access Point configurado${NC}"
+    systemctl enable hostapd
+    systemctl enable dnsmasq
+    
+    # Iniciar servicios
+    systemctl start hostapd
+    systemctl start dnsmasq
 }
 
-# Función para instalar y arrancar Suricata
+# Verificar y configurar Suricata si es necesario
 setup_suricata() {
+    # Verificar si Suricata ya está en ejecución
     if systemctl is-active --quiet suricata; then
         echo -e "${YELLOW}[*] Suricata ya está en ejecución${NC}"
         return
     fi
 
-    systemctl unmask suricata
-    systemctl enable suricata
-    systemctl start suricata
+    # Verificar estado de instalación
+    if [ ! -f "/etc/suricata/suricata.yaml" ]; then
+        echo -e "${YELLOW}[*] Primera instalación detectada${NC}"
+        bash "${BASE_DIR}/modules/ids_signatures/suricata_setup.sh"
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}[!] Error en la instalación inicial de Suricata${NC}"
+            exit 1
+        fi
+    else
+        # Configuración básica para arranques posteriores
+        systemctl start suricata
+    fi
 
+    # Verificar estado final
     if ! systemctl is-active --quiet suricata; then
-        echo -e "${RED}[!] Error al iniciar Suricata${NC}"
+        echo -e "${RED}[!] Error: No se pudo iniciar Suricata${NC}"
         exit 1
     fi
 
-    echo -e "${GREEN}[+] Suricata instalado y en ejecución${NC}"
+    echo -e "${GREEN}[+] Suricata configurado y ejecutando correctamente${NC}"
 }
 
-# Inicio del script
-echo -e "${GREEN}[+] Iniciando TheGuard...${NC}"
-if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}Este script debe ejecutarse como root${NC}"
-    exit 1
-fi
+# Crear directorios necesarios
+mkdir -p /var/log/theguard
+mkdir -p /var/log/suricata
 
-setup_requirements
-setup_directories
+# Configurar AP
 setup_ap
+
+# Configurar Suricata
 setup_suricata
 
-echo -e "${YELLOW}[*] Instalando configuraciones personalizadas de Suricata...${NC}"
-cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/"*.config /etc/suricata/rules/
-cp "${BASE_DIR}/config/suricata/suricata.yaml" /etc/suricata/
-cp "${BASE_DIR}/modules/ids_signatures/rules/custom_rules.rules" /etc/suricata/rules/
+echo -e "${YELLOW}[*] Instalando configuraciones personalizadas...${NC}"
+# Mover
+cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/classification.config" /etc/suricata/rules/
+cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/reference.config" /etc/suricata/rules/
 
+
+# Copiar configuración personalizadas
+echo -e "${YELLOW}[*] Instalando config personalizada...${NC}"
+cp "${BASE_DIR}/config/suricata/suricata.yaml" /etc/suricata/
+
+# Actualizar reglas de Suricata
 echo -e "${YELLOW}[*] Actualizando reglas de Suricata...${NC}"
 suricata-update
+
+# Copiar reglas personalizadas
+echo -e "${YELLOW}[*] Instalando reglas personalizadas...${NC}"
+cp "${BASE_DIR}/modules/ids_signatures/rules/custom_rules.rules" /etc/suricata/rules/
+cp "${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules/rules/"*.rules /etc/suricata/rules/
+
+
+
 systemctl restart suricata
 
-echo -e "${YELLOW}[*] Iniciando módulos…${NC}"
-VENV_PYTHON="${BASE_DIR}/venv/bin/python3"
-PYTHONPATH="${BASE_DIR}"
-
-# Procesador de alertas IDS
-$VENV_PYTHON -c "from modules.ids_signatures import get_ids_processor; get_ids_processor().start_monitoring()" &
+# Iniciar el procesador de alertas de Suricata
+echo -e "${YELLOW}[*] Iniciando sistema de monitoreo de alertas...${NC}"
+PYTHONPATH="${BASE_DIR}" python3 -c "from modules.ids_signatures import get_ids_processor; get_ids_processor().start_monitoring()" &
 echo $! > /var/run/theguard_alert_monitor.pid
 
-# Análisis de Anomalías
-$VENV_PYTHON -c "from modules.anomaly_analysis import AnomalyModule; AnomalyModule().start()" &
+# Iniciar todos los módulos
+echo -e "${YELLOW}[*] Iniciando módulos...${NC}"
+
+# Módulo 1 - IDS (Suricata ya está iniciado)
+
+# Módulo 2 - Análisis de Anomalías
+echo -e "${YELLOW}[*] Iniciando Módulo 2 (Análisis de Anomalías)...${NC}"
+PYTHONPATH="${BASE_DIR}" python3 -c "from modules.anomaly_analysis import AnomalyModule; AnomalyModule().start()" &
 echo $! > /var/run/theguard_anomaly.pid
 
-# DPI
-$VENV_PYTHON -c "from modules.dpi import DPIModule; DPIModule().start()" &
+# Módulo 3 - DPI
+echo -e "${YELLOW}[*] Iniciando Módulo 3 (DPI)...${NC}"
+PYTHONPATH="${BASE_DIR}" python3 -c "from modules.dpi import DPIModule; DPIModule().start()" &
 echo $! > /var/run/theguard_dpi.pid
 
-# IP Monitoring
-$VENV_PYTHON -c "from modules.ip_monitoring import IPMonitoringModule; IPMonitoringModule().start()" &
+# Módulo 4 - IP Monitoring
+echo -e "${YELLOW}[*] Iniciando Módulo 4 (IP Monitoring)...${NC}"
+PYTHONPATH="${BASE_DIR}" python3 -c "from modules.ip_monitoring import IPMonitoringModule; IPMonitoringModule().start()" &
 echo $! > /var/run/theguard_ip_monitoring.pid
 
-# Dashboard
+# Módulo 5 - Dashboard
+echo -e "${YELLOW}[*] Iniciando Dashboard...${NC}"
 bash "${BASE_DIR}/scripts/start_dashboard.sh" &
 echo $! > /var/run/theguard_dashboard.pid
 
-# Función de limpieza
+# Función de limpieza actualizada
 cleanup() {
     echo -e "${YELLOW}[*] Deteniendo servicios...${NC}"
+    
+    # Detener todos los módulos
     for pid_file in /var/run/theguard_*.pid; do
-        [ -f "$pid_file" ] && kill "$(cat "$pid_file")" && rm "$pid_file"
+        if [ -f "$pid_file" ]; then
+            kill $(cat "$pid_file")
+            rm "$pid_file"
+        fi
     done
-    systemctl stop suricata hostapd dnsmasq
-    echo -e "${GREEN}[+] Todo detenido correctamente${NC}"
+    
+    # Detener Suricata
+    systemctl stop suricata
+    
+    # Detener servicios de AP
+    systemctl stop hostapd
+    systemctl stop dnsmasq
+    
+    echo -e "${GREEN}[+] Todos los módulos detenidos correctamente${NC}"
     exit 0
 }
 
+# Registrar función de limpieza para señales de terminación
 trap cleanup SIGINT SIGTERM
 
 echo -e "${GREEN}[+] TheGuard iniciado correctamente${NC}"
-echo -e "${GREEN}[+] Dashboard en http://192.168.4.1:5000${NC}"
+echo -e "${GREEN}[+] Dashboard disponible en http://192.168.4.1:5000${NC}"
 
-while true; do sleep 1; done
+# Mantener el script en ejecución
+while true; do
+    sleep 1
+done
