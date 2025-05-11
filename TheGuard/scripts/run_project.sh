@@ -11,36 +11,35 @@ NC='\033[0m'
 
 # Función para instalar requisitos
 setup_requirements() {
-    echo -e "${YELLOW}[*] Instalando requisitos del sistema...${NC}"
-    
-    # Instalar requisitos del sistema
-    apt-get update
-    apt-get install -y build-essential python3-dev libssl-dev libffi-dev \
-                      cargo rustc libnetfilter-queue-dev libnfnetlink-dev \
-                      python3-pip python3-venv
+  echo -e "${YELLOW}[*] Instalando requisitos del sistema...${NC}"
+  apt-get update
+  apt-get install -y build-essential python3-dev libssl-dev libffi-dev \
+                    libnetfilter-queue-dev libnfnetlink-dev \
+                    python3-pip python3-venv curl git || exit 1
 
-    # Crear y activar entorno virtual si no existe
-    if [ ! -d "${BASE_DIR}/venv" ]; then
-        echo -e "${YELLOW}[*] Creando entorno virtual...${NC}"
-        python3 -m venv "${BASE_DIR}/venv"
-    fi
-    
-    # Activar entorno virtual
-      VENV_PIP="${BASE_DIR}/venv/bin/pip"
-  VENV_PYTHON="${BASE_DIR}/venv/bin/python3"
+  echo -e "${YELLOW}[*] Eliminando rust viejo si existe...${NC}"
+  apt-get remove -y rustc cargo || true
 
-  echo -e "${YELLOW}[*] Actualizando pip, setuptools y wheel…${NC}"
-  $VENV_PIP install --upgrade pip setuptools wheel
-
-  if [ -f "${BASE_DIR}/requirements.txt" ]; then
-    echo -e "${YELLOW}[*] Instalando dependencias Python…${NC}"
-    $VENV_PIP install -r "${BASE_DIR}/requirements.txt"
-  else
-    echo -e "${RED}[!] No se encontró requirements.txt${NC}"
-    exit 1
+  # Instala rustup (si no está)
+  if ! command -v rustup >/dev/null 2>&1; then
+    echo -e "${YELLOW}[*] Instalando Rust toolchain vía rustup...${NC}"
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    export PATH="$HOME/.cargo/bin:$PATH"
   fi
 
-  echo -e "${GREEN}[+] Requirements instalados correctamente${NC}"
+  # Asegurarse de usar la toolchain stable
+  rustup default stable
+
+  echo -e "${YELLOW}[*] Configurando entorno virtual y dependencias Python...${NC}"
+  if [ ! -d "${BASE_DIR}/venv" ]; then
+    python3 -m venv "${BASE_DIR}/venv"
+  fi
+  VENV_PIP="${BASE_DIR}/venv/bin/pip"
+  VENV_PYTHON="${BASE_DIR}/venv/bin/python3"
+  $VENV_PIP install --upgrade pip setuptools wheel
+  $VENV_PIP install -r "${BASE_DIR}/requirements.txt"
+
+  echo -e "${GREEN}[+] Requisitos del sistema y Python instalados${NC}"
 }
 
 # Función para crear y configurar directorios
