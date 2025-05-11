@@ -1,7 +1,8 @@
 from .ip_tracker import IPTracker
 from .connection_logger import ConnectionLogger
 from .abuse_ipdb_integration import AbuseIPDBClient
-from .ip_tracker import IPMonitoringModule
+from modules.ip_monitoring import IPMonitoringModule
+
 
 def get_ip_tracker() -> IPTracker:
     """Returns a configured IP tracker instance."""
