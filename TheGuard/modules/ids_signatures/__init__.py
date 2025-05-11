@@ -6,7 +6,7 @@ import logging
 import yaml
 from pathlib import Path
 from datetime import datetime
-from .suricata_processor import SuricataAlertProcessor
+from .suricata_processor import SuricataAlertProcessor, get_integration
 
 class IDSIntegration:
     def __init__(self):
