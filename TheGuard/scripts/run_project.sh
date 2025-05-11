@@ -15,10 +15,11 @@ setup_requirements() {
     
     # Instalar requisitos del sistema
     apt-get update
-    apt-get install -y build-essential python3-dev libssl-dev libffi-dev \
-                      cargo rustc libnetfilter-queue-dev libnfnetlink-dev \
-                      python3-pip python3-venv
-    apt-get install -y python3-cryptography python3-bcrypt python3-netfilterqueue
+    apt-get install -y \
+        build-essential python3-dev libssl-dev libffi-dev \
+        python3-pip python3-venv \
+        python3-cryptography python3-bcrypt python3-netfilterqueue \
+        python3-scapy python3-watchdog python3-pandas
 
     # Crear y activar entorno virtual si no existe
     if [ ! -d "${BASE_DIR}/venv" ]; then
