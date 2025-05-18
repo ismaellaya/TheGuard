@@ -109,7 +109,7 @@ fi
 
 echo "[+] Extrayendo reglas…"
 # Ruta real a tu archivo de reglas
-RULES_ARCHIVE="${BASE_DIR}/modules/ids_signatures/rules.rar"
+RULES_ARCHIVE="${BASE_DIR}/ids_signatures/rules.rar"
 
 if [ -f "$RULES_ARCHIVE" ]; then
     # Asegúrate de tener unrar no libre
