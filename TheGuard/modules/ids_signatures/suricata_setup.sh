@@ -107,32 +107,31 @@ if [ -f "/etc/suricata/suricata.yaml" ]; then
     cp /etc/suricata/suricata.yaml "/var/lib/suricata/backup/suricata.yaml.$(date +%Y%m%d_%H%M%S)"
 fi
 
-# Extraer reglas del archivo .rar
-echo "[+] Extrayendo reglas..."
-if [ -f "${SCRIPT_DIR}/rules.rar" ]; then
-    
-    # Extraer el archivo .rar
-    unrar x "${SCRIPT_DIR}/rules.rar"
-   
+echo "[+] Extrayendo reglas…"
+# Ruta real a tu archivo de reglas
+RULES_ARCHIVE="${BASE_DIR}/modules/ids_signatures/rules/et_rules/emerging.rules.rar"
 
-    # Copiar reglas personalizadas
-    echo -e "${YELLOW}[*] Instalando reglas personalizadas...${NC}"
-    cp "${BASE_DIR}/ids_signatures/rules/custom_rules.rules" /etc/suricata/rules/
-    cp "${BASE_DIR}/ids_signatures/rules/et_rules/emerging.rules/rules/"*.rules /etc/suricata/rules/
-    rm -rf rules/
+if [ -f "$RULES_ARCHIVE" ]; then
+    # Asegúrate de tener unrar no libre
+    apt-get install -y unrar p7zip-rar
+
+    # Extrae preservando la estructura
+    unrar x "$RULES_ARCHIVE" /etc/suricata/rules/ \
+      || { echo "[!] Error extrayendo $RULES_ARCHIVE"; exit 1; }
+
+    # Ahora copiamos las configs y las reglas
+    cp /etc/suricata/rules/emerging.rules/rules/classification.config \
+       /etc/suricata/rules/ || true
+    cp /etc/suricata/rules/emerging.rules/rules/reference.config \
+       /etc/suricata/rules/ || true
+    cp /etc/suricata/rules/emerging.rules/rules/*.rules \
+       /etc/suricata/rules/
+
 else
-    echo "[!] Error: Archivo rules.rar no encontrado en ${SCRIPT_DIR}/rules.rar"
+    echo "[!] Error: no encontré $RULES_ARCHIVE"
     exit 1
 fi
 
- 
-    # Mover archivos de configuración a /etc/suricata/rules
-if [ -f "rules/et_rules/emerging.rules/rules/classification.config" ]; then
-    cp "${BASE_DIR}/ids_signatures/rules/et_rules/emerging.rules/rules/classification.config" /etc/suricata/rules/
-fi
-if [ -f "rules/et_rules/emerging.rules/rules/reference.config" ]; then
-    cp "${BASE_DIR}/ids_signatures/rules/et_rules/emerging.rules/rules/reference.config" /etc/suricata/rules/
-fi
     
     # Mover todas las reglas .rules al directorio principal
 find rules/et_rules/emerging.rules/rules/ -name "*.rules" -exec cp {} . \;
