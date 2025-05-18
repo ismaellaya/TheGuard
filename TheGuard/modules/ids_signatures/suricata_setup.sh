@@ -120,11 +120,11 @@ if [ -f "$RULES_ARCHIVE" ]; then
       || { echo "[!] Error extrayendo $RULES_ARCHIVE"; exit 1; }
 
     # Ahora copiamos las configs y las reglas
-    cp /etc/suricata/rules/emerging.rules/rules/classification.config \
+    cp /etc/suricata/rules/rules/et_rules/emerging.rules/rules/classification.config \
        /etc/suricata/rules/ || true
-    cp /etc/suricata/rules/emerging.rules/rules/reference.config \
+    cp /etc/suricata/rules/rules/et_rules/emerging.rules/rules/reference.config \
        /etc/suricata/rules/ || true
-    cp /etc/suricata/rules/emerging.rules/rules/*.rules \
+    cp /etc/suricata/rules/rules/et_rules/emerging.rules/rules/*.rules \
        /etc/suricata/rules/
 
 else
