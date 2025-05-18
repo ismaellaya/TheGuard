@@ -110,7 +110,7 @@ fi
 # Extraer reglas del archivo .rar
 echo "[+] Extrayendo reglas..."
 if [ -f "${SCRIPT_DIR}/rules.rar" ]; then
-    cd /etc/suricata/rules/
+    
     # Extraer el archivo .rar
     unrar x "${SCRIPT_DIR}/rules.rar"
    
