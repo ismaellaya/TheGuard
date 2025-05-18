@@ -112,7 +112,7 @@ echo "[+] Extrayendo reglas..."
 if [ -f "${SCRIPT_DIR}/rules.rar" ]; then
     
     # Extraer el archivo .rar
-    unrar x rules.rar
+    unrar x "${SCRIPT_DIR}/rules.rar"
    
 
     # Copiar reglas personalizadas
